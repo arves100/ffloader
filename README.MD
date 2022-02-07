@@ -1,4 +1,4 @@
-# Fur Fighters Loaders
+# Fur Fighters Loader
 NetLib.dll replacement for updating Fur Fighters with Quality of Life improvements.
 
 Requires an unpatched Fur Fighters 1.2
