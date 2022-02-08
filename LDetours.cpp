@@ -93,11 +93,22 @@ DETOURS_FNC(RegisterClassA, (_In_ const WNDCLASSA* lpWndClass), ATOM)
 	return Original_RegisterClassA(lpWndClass);
 }
 
+DETOURS_FNC(RegQueryValueExA, (_In_ HKEY hKey,_In_opt_ LPCSTR lpValueName, LPDWORD lpReserved, _Out_opt_ LPDWORD lpType, _Out_opt_ LPBYTE lpData, _Inout_opt_ LPDWORD lpcbData), LSTATUS)
+{
+	if (strcmp(lpValueName, "Controller Configuration") == 0)
+	{
+		Globals::Get()->TheLoader->InitDirectInputData();
+	}
+
+	return Original_RegQueryValueExA(hKey, lpValueName, lpReserved, lpType, lpData, lpcbData);
+}
+
 static DetoursFnc DETOURS[] =
 {
 	DETOURS_ADD(DialogBoxParamA),
 	DETOURS_ADD(CreateWindowExA),
 	DETOURS_ADD(RegisterClassA),
+	DETOURS_ADD(RegQueryValueExA),
 };
 
 void DetourInit(void)

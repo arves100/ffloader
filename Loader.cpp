@@ -12,6 +12,7 @@
 #include "patches/nocd.h"
 #include "patches/nointro.h"
 #include "patches/enumalldisplay.h"
+#include "patches/noexclusiveinput.h"
 
 bool Loader::Init()
 {
@@ -44,16 +45,24 @@ bool Loader::Init()
 
 	globals->LoaderUseFullFunctions = true;
 
-	if (globals->LoaderUseFullFunctions)
-		ApplyPreInitPatch();
-
+	ApplyPreInitPatch();
 	return true;
 }
 
 void Loader::ApplyPreInitPatch()
 {
+#ifndef _DEBUG
+	if (!Globals::Get()->LoaderUseFullFunctions)
+		return;
+#endif
+
 	if (m_bNoCd)
 		ApplyNOCD();
+
+#ifdef _DEBUG
+	if (!Globals::Get()->LoaderUseFullFunctions)
+		return;
+#endif
 
 	ApplyENUMALLDISPLAY();
 }
@@ -155,6 +164,9 @@ void Loader::AddScreenMode(LPDDSURFACEDESC2 dd)
 
 BOOL Loader::ScreenModeDialogProc(HWND hDlg, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
+	if (!Globals::Get()->LoaderUseFullFunctions)
+		return m_screenDlgProc(hDlg, Msg, wParam, lParam);
+
 	switch (Msg)
 	{
 	case WM_COMMAND:
@@ -265,6 +277,9 @@ void Loader::ApplyInitPatch()
 {
 	auto globals = Globals::Get();
 
+	if (!globals->LoaderUseFullFunctions)
+		return;
+
 	if (m_bSkipIntro)
 		ApplyNOINTRO();
 
@@ -276,6 +291,8 @@ void Loader::ApplyInitPatch()
 
 		if (!WriteProcessMemory(globals->GameProcess, addr, &tmp, 4, &wri) || wri != 4)
 			FATAL("Unable to set window mode in game");
+
+		ApplyNOEXCLUSIVEINPUT();
 	}
 }
 
@@ -339,5 +356,113 @@ void Loader::SaveSettings()
 
 LRESULT Loader::GameWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
+	if (Msg == WM_ACTIVATEAPP)
+	{
+		AcquireOrUnaquire(wParam == TRUE);
+	}
+	else if (Msg == WM_ACTIVATE)
+	{
+		AcquireOrUnaquire(wParam == WA_INACTIVE);
+	}
+	else if (Msg == WM_KILLFOCUS)
+	{
+		AcquireOrUnaquire(false);
+	}
+	else if (Msg == WM_SETFOCUS)
+	{
+		AcquireOrUnaquire(true);
+	}
+
 	return m_gameWndProc(hWnd, Msg, wParam, lParam);
+}
+
+void Loader::InitDirectInputData()
+{
+	auto g = Globals::Get();
+
+	if (!g->LoaderUseFullFunctions)
+		return;
+
+	LPBYTE b = (LPBYTE)g->BaseAddress;
+	SIZE_T r;
+
+	if (!ReadProcessMemory(g->GameProcess, b + (KEYBOARD_ACQUIRED_DWORD - IDA_BASE), &m_dwKeyAcq, 4, &r) || r != 4)
+		FATAL("Unable to read keyboard acquire status");
+	
+	if (!ReadProcessMemory(g->GameProcess, b + (MOUSE_ACQUIRED_DWORD - IDA_BASE), &m_dwMouseAcq, 4, &r) || r != 4)
+		FATAL("Unable to read mouse acquire status");
+
+	if (!ReadProcessMemory(g->GameProcess, b + (MOUSE_DEVICE - IDA_BASE), &m_pMouseDevice, sizeof(m_pMouseDevice), &r) || r != sizeof(m_pMouseDevice))
+		FATAL("Unable to acquire mouse device");
+
+	if (!ReadProcessMemory(g->GameProcess, b + (KEYBOARD_DEVICE - IDA_BASE), &m_pKeyboardDevice, sizeof(m_pKeyboardDevice), &r) || r != sizeof(m_pKeyboardDevice))
+		FATAL("Unable to acquire keyboard device");
+
+	if (!ReadProcessMemory(g->GameProcess, b + (RECT_CURSOR - IDA_BASE), &m_rCursor, sizeof(m_rCursor), &r) || r != sizeof(m_rCursor))
+		FATAL("Unable to read mouse clip cursor");
+
+	if (!ReadProcessMemory(g->GameProcess, b + (POINTX - IDA_BASE), &m_dwPointXMod, 4, &r) || r != 4)
+		FATAL("Unable to read point x mod");
+
+	m_bStartDI = true;
+}
+
+void Loader::AcquireOrUnaquire(bool f)
+{
+	if (!m_bStartDI)
+		return;
+
+	auto g = Globals::Get();
+	LPBYTE b = (LPBYTE)g->BaseAddress;
+	SIZE_T r;
+
+	if (f)
+	{
+		if (!m_dwMouseAcq)
+		{
+			if (SUCCEEDED(m_pMouseDevice->Acquire()))
+				m_dwMouseAcq = 1;
+			else
+				m_dwMouseAcq = 0;
+		}
+
+		if (!m_dwKeyAcq)
+		{
+			if (SUCCEEDED(m_pKeyboardDevice->Acquire()))
+				m_dwKeyAcq = 1;
+			else
+				m_dwKeyAcq = 0;
+		}
+
+		ClipCursor(&m_rCursor);
+	}
+	else
+	{
+		if (m_dwMouseAcq)
+		{
+			if (SUCCEEDED(m_pMouseDevice->Unacquire()))
+			{
+				m_dwMouseAcq = 0;
+			}
+			else
+				m_dwMouseAcq = 1;
+		}
+
+
+		if (m_dwKeyAcq)
+		{
+			if (SUCCEEDED(m_pKeyboardDevice->Unacquire()))
+				m_dwKeyAcq = 0;
+			else
+				m_dwKeyAcq = 1;
+		}
+
+		ClipCursor(nullptr);
+	}
+
+	if (!WriteProcessMemory(g->GameProcess, b + (KEYBOARD_ACQUIRED_DWORD - IDA_BASE), &m_dwKeyAcq, 4, &r) || r != 4)
+		FATAL("Unable to set keyboard acquire status");
+
+	if (!WriteProcessMemory(g->GameProcess, b + (MOUSE_ACQUIRED_DWORD - IDA_BASE), &m_dwMouseAcq, 4, &r) || r != 4)
+		FATAL("Unable to set mouse acquire status");
 }

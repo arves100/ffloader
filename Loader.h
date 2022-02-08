@@ -20,6 +20,7 @@ public:
 	void SetGameWindowProc(WNDPROC wndProc) { m_gameWndProc = wndProc; }
 	LRESULT GameWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
 	void ApplyInitPatch();
+	void InitDirectInputData();
 
 private:
 	void CheckSha256OfGame();
@@ -27,6 +28,7 @@ private:
 	void PatchScreenMode();
 	void CreateOrLoadSettings();
 	void SaveSettings();
+	void AcquireOrUnaquire(bool b);
 
 	DLGPROC m_screenDlgProc;
 	DWORD m_dwSelectedScreenMode;
@@ -35,6 +37,15 @@ private:
 	bool m_bNoCd;
 	DWORD m_dwGpu;
 	WNDPROC m_gameWndProc;
+	RECT m_rCursor;
+
+	// DirectInput
+	DWORD m_dwKeyAcq;
+	DWORD m_dwMouseAcq;
+	LPDIRECTINPUTDEVICE7A m_pMouseDevice;
+	LPDIRECTINPUTDEVICE7A m_pKeyboardDevice;
+	bool m_bStartDI;
+	DWORD m_dwPointXMod;
 
 	// DIALOG HWND
 	HWND hExtra;
