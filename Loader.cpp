@@ -13,6 +13,7 @@
 #include "patches/nointro.h"
 #include "patches/enumalldisplay.h"
 #include "patches/noexclusiveinput.h"
+#include "patches/timefix.h"
 
 bool Loader::Init()
 {
@@ -65,6 +66,7 @@ void Loader::ApplyPreInitPatch()
 #endif
 
 	ApplyENUMALLDISPLAY();
+	//ApplyTIMEFIX();
 }
 
 void Loader::CheckSha256OfGame()

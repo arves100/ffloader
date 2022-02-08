@@ -12,6 +12,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="DPInstance.cpp" />
     <ClCompile Include="DPMsg.cpp" />
     <ClCompile Include="DPPlayer.cpp" />
     <ClCompile Include="enet.c">
@@ -30,6 +31,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DPInstance.h" />
     <ClInclude Include="DPMsg.h" />
     <ClInclude Include="DPPlayer.h" />
     <ClInclude Include="enet.h" />
