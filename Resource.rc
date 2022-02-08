@@ -51,7 +51,7 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,0,0,1
+ FILEVERSION 1,0,0,0
  PRODUCTVERSION 1,0,0,1
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
@@ -67,13 +67,12 @@ BEGIN
     BEGIN
         BLOCK "041004b0"
         BEGIN
-            VALUE "CompanyName", "TODO: <Nome società>"
-            VALUE "FileDescription", "TODO: <Descrizione file>"
-            VALUE "FileVersion", "1.0.0.1"
+            VALUE "CompanyName", "Arves100"
+            VALUE "FileDescription", "Fur Fighters loader and patcher to extend game functionality"
+            VALUE "FileVersion", "1.0.0.0"
             VALUE "InternalName", "ffloader.dll"
-            VALUE "LegalCopyright", "Copyright (C) 2022"
             VALUE "OriginalFilename", "ffloader.dll"
-            VALUE "ProductName", "TODO: <Nome prodotto>"
+            VALUE "ProductName", "NetLib.dll"
             VALUE "ProductVersion", "1.0.0.1"
         END
     END

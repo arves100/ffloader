@@ -1,3 +1,9 @@
+/*!
+	@date 06/02/2022
+	@author Arves100
+	@file Globals.cpp
+	@brief project main singleton and global configuration
+*/
 #include "StdAfx.h"
 #include "Globals.h"
 

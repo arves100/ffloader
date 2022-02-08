@@ -1,3 +1,8 @@
+/*!
+    @author Arves100
+    @brief DLL Entrypoint
+    @date 01/11/2020
+*/
 #include "StdAfx.h"
 #include "Globals.h"
 #include "LDetours.h"
