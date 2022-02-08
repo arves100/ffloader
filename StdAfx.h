@@ -16,8 +16,11 @@
 typedef int HRESULT_INT;
 
 // DirectX 8 SDK inclusions
+#define DIRECTINPUT_VERSION 0x700
 #include <ddraw.h>
 #include <dplay.h>
+#include <dinput.h>
+#include <dplobby.h>
 
 #define CRASH { int* x = 0; *x = 999; }
 
@@ -31,6 +34,12 @@ typedef int HRESULT_INT;
 
 #define REGISTRY_KEY L"SOFTWARE\\Bizarre Creations\\Fur Fighters\\Loader"
 
+// {CC84BC6B-DF98-4097-9429-21AC86426A42}
+DEFINE_GUID(GUID_ENet, 0xcc84bc6b, 0xdf98, 0x4097, 0x94, 0x29, 0x21, 0xac, 0x86, 0x42, 0x6a, 0x42);
+
+// {68DCDBFF-BA9C-4776-BC9B-BB98CB9A276A}
+DEFINE_GUID(GUID_ENetAddress, 0x68dcdbff, 0xba9c, 0x4776, 0xbc, 0x9b, 0xbb, 0x98, 0xcb, 0x9a, 0x27, 0x6a);
+
 // C
 #include <cstring>
 #include <cstdlib>
@@ -38,6 +47,9 @@ typedef int HRESULT_INT;
 // C++
 #include <string>
 #include <vector>
+#include <unordered_map>
+#include <memory>
+#include <thread>
 
 // REVERSED: CONTENT OF ARRAY AT 0x005B1DA8
 struct avail_display_info
@@ -49,5 +61,18 @@ struct avail_display_info
 	constexpr bool operator==(const avail_display_info& lhs) const
 	{
 		return lhs.dwheight == dwheight && lhs.dwWidth == dwWidth && lhs.dwRGBBitsCount == dwRGBBitsCount;
+	}
+};
+
+// ENet Network
+#include "enet.h"
+
+// GUID hash function (required for FakeDP)
+struct GUIDHasher
+{
+	size_t operator()(const GUID& k) const
+	{
+		RPC_STATUS r;
+		return UuidHash((UUID*) &k, &r);
 	}
 };

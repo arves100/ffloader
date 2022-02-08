@@ -6,6 +6,11 @@
 */
 #pragma once
 
+#include "DPPlayer.h"
+#include "DPMsg.h"
+
+using QueueMsg = std::vector<DPMsg>;
+
 class DLLAPI FakeDP
 {
 public:
@@ -33,4 +38,31 @@ public:
 	HRESULT_INT EnumConnections(LPCGUID lpguidApplication, LPDPENUMCONNECTIONSCALLBACK lpEnumCallback, LPVOID lpContext, DWORD dwFlags);
 	HRESULT_INT GetSessionDesc(LPVOID lpData, LPDWORD lpdwDataSize);
 	HRESULT_INT GetPlayerData(DPID idPlayer, LPVOID lpData, LPDWORD lpdwDataSize, DWORD dwFlags);
+
+private:
+	bool GetAddressFromDPAddress(LPVOID lpConnection, ENetAddress* addr);
+	void Service(uint32_t time);
+	void SetupService();
+
+	ENetHost* m_pHost;
+
+	// Shared
+	std::string m_szGameName;
+	std::unordered_map<DPID, std::shared_ptr<DPPlayer>> m_vPlayers;
+	bool m_bHost;
+	GUID m_gSession;
+	QueueMsg m_vMessages; // we need a queue due to how DPlay works...
+	DWORD m_adwUser[4];
+
+	// Server
+	DWORD m_dwMaxPlayers;
+
+	// Client
+	bool m_bConnected;
+	ENetPeer* m_pClientPeer;
+	std::unordered_map<GUID, ENetAddress, GUIDHasher> m_vEnumAddr;
+
+	// ENet Thread
+	std::thread m_thread;
+	bool m_bService;
 };

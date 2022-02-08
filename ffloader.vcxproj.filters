@@ -39,6 +39,15 @@
     <ClCompile Include="LDetours.cpp">
       <Filter>File di origine</Filter>
     </ClCompile>
+    <ClCompile Include="DPPlayer.cpp">
+      <Filter>File di origine</Filter>
+    </ClCompile>
+    <ClCompile Include="DPMsg.cpp">
+      <Filter>File di origine</Filter>
+    </ClCompile>
+    <ClCompile Include="enet.c">
+      <Filter>File di origine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FakeDP.h">
@@ -69,6 +78,18 @@
       <Filter>Patches</Filter>
     </ClInclude>
     <ClInclude Include="LDetours.h">
+      <Filter>File di intestazione</Filter>
+    </ClInclude>
+    <ClInclude Include="patches\noexclusiveinput.h">
+      <Filter>Patches</Filter>
+    </ClInclude>
+    <ClInclude Include="enet.h">
+      <Filter>File di intestazione</Filter>
+    </ClInclude>
+    <ClInclude Include="DPPlayer.h">
+      <Filter>File di intestazione</Filter>
+    </ClInclude>
+    <ClInclude Include="DPMsg.h">
       <Filter>File di intestazione</Filter>
     </ClInclude>
   </ItemGroup>
