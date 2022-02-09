@@ -16,6 +16,7 @@ enum DPMsgTypes
 	DPMSG_TYPE_GAME_INFO = 3,
 	DPMSG_TYPE_CHAT = 4,
 	DPMSG_TYPE_GAME = 5,
+	DPMSG_TYPE_REMOTEINFO = 6,
 };
 
 struct DPGameInfo
@@ -145,6 +146,7 @@ public:
 	static ENetPacket* NewId(DPID id);
 	static ENetPacket* CreateRoomInfo(GUID roomId, DWORD maxPlayers, DWORD currPlayers, const char* sessionName, DWORD user[4]);
 	static ENetPacket* ChatPacket(DPID from, DPID to, bool reliable, LPDPCHAT data);
+	static ENetPacket* CreatePlayerRemote(const std::shared_ptr<DPPlayer>& player, bool reliable);
 
 private:
 	struct RefData

@@ -27,6 +27,42 @@ public:
 	const char* GetLongName() const { return m_szLongName.c_str(); }
 	const char* GetShortName() const { return m_szShortName.c_str(); }
 
+	void SetLocalData(LPVOID lpData, DWORD dwDataSize)
+	{
+		if (!lpData)
+		{
+			if (m_lpData)
+				delete[] m_lpData;
+
+			m_lpData = nullptr;
+			m_dwDataSize = 0;
+		}
+		else
+		{
+			m_lpData = new BYTE[dwDataSize];
+			m_dwDataSize = dwDataSize;
+			memcpy_s(m_lpData, m_dwDataSize, lpData, dwDataSize);
+		}
+	}
+
+	void SetRemoteData(LPVOID lpData, DWORD dwDataSize)
+	{
+		if (!lpData)
+		{
+			if (m_lpRemoteData)
+				delete[] m_lpRemoteData;
+	
+			m_lpRemoteData = nullptr;
+			m_dwRemoteDataSize = 0;
+		}
+		else
+		{
+			m_lpRemoteData = new BYTE[dwDataSize];
+			m_dwRemoteDataSize = dwDataSize;
+			memcpy_s(m_lpRemoteData, m_dwRemoteDataSize, lpData, dwDataSize);
+		}
+	}
+
 	void FireEvent();
 	void Create(DPID id, const char* shortName, const char* longName, HANDLE hEvent, LPVOID lpData, DWORD dwDataSize, bool spectator, bool madeByHost);
 
@@ -35,11 +71,11 @@ private:
 	std::string m_szLongName;
 	std::string m_szShortName;
 	HANDLE m_hEvent;
-	LPVOID m_lpData;
+	LPBYTE m_lpData;
 	DWORD m_dwDataSize;
 	bool m_bIsSpectator;
 	bool m_bMadeByHost;
-	LPVOID m_lpRemoteData;
+	LPBYTE m_lpRemoteData;
 	DWORD m_dwRemoteDataSize;
 
 	// ENet specific

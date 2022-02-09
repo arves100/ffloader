@@ -204,6 +204,8 @@ HRESULT DPInstance::CreateGroup(LPDPID lpidGroup, LPDPNAME lpGroupName, LPVOID l
 
 HRESULT DPInstance::Receive(LPDPID lpidFrom, LPDPID lpidTo, DWORD dwFlags, LPVOID lpData, LPDWORD lpdwDataSize)
 {
+	auto a = Globals::Get()->TheArena;
+
 	if (!m_bConnected && !m_bHost)
 		return DPERR_NOCONNECTION;
 
@@ -255,6 +257,22 @@ HRESULT DPInstance::Receive(LPDPID lpidFrom, LPDPID lpidTo, DWORD dwFlags, LPVOI
 				return ret;
 
 			*lpidFrom = 0;
+
+			if (*(DWORD*)lpData == DPSYS_DESTROYPLAYERORGROUP) // Patch to add required data
+			{
+				LPDPMSG_DESTROYPLAYERORGROUP destroyMsg = (LPDPMSG_DESTROYPLAYERORGROUP)lpData;
+
+				auto p = m_vPlayers.find(destroyMsg->dpId);
+				if (p != m_vPlayers.end())
+				{
+					destroyMsg->lpLocalData = a->Store(p->second->GetLocalData(), p->second->GetLocalDataSize());
+					destroyMsg->dwLocalDataSize = p->second->GetLocalDataSize();
+					destroyMsg->lpRemoteData = a->Store(p->second->GetRemoteData(), p->second->GetRemoteDataSize());
+					destroyMsg->dwRemoteDataSize = p->second->GetRemoteDataSize();
+
+					m_vPlayers.erase(p); // bye bye,,...
+				}
+			}
 		}
 		else
 		{
@@ -388,7 +406,9 @@ void DPInstance::Service(uint32_t timeout)
 
 					// tell all the peers that a player disconnected
 
-					m_vPlayers.erase(it);
+					auto r = std::make_shared<DPMsg>(DPMsg::DestroyPlayer(p), true);
+
+					m_vMessages.push_back(r); // tell ourself that someone died
 
 					enet_host_broadcast(m_pHost, ENET_CHANNEL_CHAT, DPMsg::DestroyPlayer(p));
 				}
@@ -445,6 +465,19 @@ void DPInstance::Service(uint32_t timeout)
 				}
 			}
 
+			if (msg->GetType() == DPMSG_TYPE_REMOTEINFO)
+			{
+				auto p = m_vPlayers.find(msg->GetFrom());
+
+				if (p != m_vPlayers.end())
+				{
+					DWORD len;
+					msg->Read(len);
+					p->second->SetRemoteData(msg->Read2(len), len);
+					break; // Do not add this internal message to the queue
+				}
+			}
+
 			if (evt.peer->data != 0)
 			{
 				auto p = m_vPlayers[(DPID)evt.peer->data];
@@ -461,7 +494,27 @@ void DPInstance::Service(uint32_t timeout)
 
 HRESULT DPInstance::SetPlayerData(DPID idPlayer, LPVOID lpData, DWORD dwDataSize, DWORD dwFlags)
 {
-	printf("[LOADER] STUB:SetPlayerData %d %p %d %d\n", idPlayer, lpData, dwDataSize, dwFlags);
+	auto p = m_vPlayers.find(idPlayer);
+
+	if (p == m_vPlayers.end())
+		return DPERR_INVALIDPLAYER;
+
+	if (dwFlags & DPSET_LOCAL)
+		p->second->SetLocalData(lpData, dwDataSize);
+
+	p->second->SetRemoteData(lpData, dwDataSize);
+
+	// dwFlags & DPSET_GUARANTEED
+	
+	if (!m_bHost)
+	{
+		enet_peer_send(m_pClientPeer, ENET_CHANNEL_NORMAL, DPMsg::CreatePlayerRemote(p->second, dwFlags & DPSET_GUARANTEED));
+	}
+	else
+	{
+		enet_host_broadcast(m_pHost, ENET_CHANNEL_NORMAL, DPMsg::CreatePlayerRemote(p->second, dwFlags & DPSET_GUARANTEED));
+	}
+
 	return DP_OK;
 }
 
@@ -691,7 +744,30 @@ HRESULT DPInstance::GetSessionDesc(LPVOID lpData, LPDWORD lpdwDataSize)
 
 HRESULT DPInstance::GetPlayerData(DPID idPlayer, LPVOID lpData, LPDWORD lpdwDataSize, DWORD dwFlags)
 {
-	printf("[LOADER] STUB: GetPlayerData %d %p %p %d %d", idPlayer, lpData, lpdwDataSize, *lpdwDataSize, dwFlags);
+	auto p = m_vPlayers.find(idPlayer);
+
+	if (m_vPlayers.end() == p)
+		return DPERR_INVALIDPLAYER;
+
+	DWORD r;
+	LPVOID v;
+
+	if (dwFlags & DPGET_LOCAL)
+	{
+		r = p->second->GetLocalDataSize();
+		v = p->second->GetLocalData();
+	}
+	else
+	{
+		r = p->second->GetRemoteDataSize();
+		v = p->second->GetRemoteData();
+	}
+
+	if (r > *lpdwDataSize)
+		return DPERR_BUFFERTOOSMALL;
+
+	memcpy_s(lpData, *lpdwDataSize, v, r);
+	*lpdwDataSize = r;
 	return DP_OK;
 }
 

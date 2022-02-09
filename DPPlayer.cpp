@@ -8,7 +8,11 @@
 #include "DPPlayer.h"
 
 DPPlayer::DPPlayer() : m_dwId(0), m_hEvent(INVALID_HANDLE_VALUE), m_lpData(nullptr), m_dwDataSize(0), m_bIsSpectator(false), m_bMadeByHost(false), m_lpRemoteData(nullptr), m_dwRemoteDataSize(0), m_pPeer(nullptr) {}
-DPPlayer::~DPPlayer() = default;
+DPPlayer::~DPPlayer()
+{
+	SetLocalData(nullptr, 0);
+	SetRemoteData(nullptr, 0);
+}
 
 void DPPlayer::Create(DPID id, const char* shortName, const char* longName, HANDLE hEvent, LPVOID lpData, DWORD dwDataSize, bool spectator, bool madeByHost)
 {
@@ -20,7 +24,7 @@ void DPPlayer::Create(DPID id, const char* shortName, const char* longName, HAND
 	if (shortName)
 		m_szShortName = shortName;
 	m_hEvent = hEvent;
-	m_lpData = lpData;
+	SetLocalData(lpData, dwDataSize);
 	m_dwDataSize = dwDataSize;
 	m_bIsSpectator = spectator;
 	m_bMadeByHost = madeByHost;
