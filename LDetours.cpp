@@ -113,6 +113,8 @@ static DetoursFnc DETOURS[] =
 
 void DetourInit(void)
 {
+	printf("[LOADER] Detours startup %d...\n", ARRAYSIZE(DETOURS));
+
 	//DetourRestoreAfterWith();
 
 	DetourTransactionBegin();
@@ -126,6 +128,8 @@ void DetourInit(void)
 
 void DetourDeinit(void)
 {
+	printf("[LOADER] Detours shutdown...\n");
+
 	//DetourRestoreAfterWith();
 
 	DetourTransactionBegin();

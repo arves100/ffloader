@@ -13,8 +13,12 @@ DPPlayer::~DPPlayer() = default;
 void DPPlayer::Create(DPID id, const char* shortName, const char* longName, HANDLE hEvent, LPVOID lpData, DWORD dwDataSize, bool spectator, bool madeByHost)
 {
 	m_dwId = id;
-	m_szLongName = longName;
-	m_szShortName = shortName;
+
+	if (longName)
+		m_szLongName = longName;
+	
+	if (shortName)
+		m_szShortName = shortName;
 	m_hEvent = hEvent;
 	m_lpData = lpData;
 	m_dwDataSize = dwDataSize;
@@ -29,11 +33,18 @@ void DPPlayer::FireEvent()
 
 void DPPlayer::Disconnect()
 {
+	if (!m_pPeer)
+		return;
+
 	enet_peer_disconnect(m_pPeer, 0);
+	m_pPeer = nullptr;
 }
 
 void DPPlayer::ForceDisconnect()
 {
+	if (!m_pPeer)
+		return;
+
 	enet_peer_disconnect_now(m_pPeer, 0);
-	enet_peer_reset(m_pPeer);
+	m_pPeer = nullptr;
 }

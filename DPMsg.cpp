@@ -109,6 +109,23 @@ ENetPacket* DPMsg::CreateRoomInfo(GUID roomId, DWORD maxPlayers, DWORD currPlaye
 	return msg.Serialize();
 }
 
+ENetPacket* DPMsg::ChatPacket(DPID from, DPID to, bool reliable, LPDPCHAT chatMsg)
+{
+	DPMSG_CHAT chat;
+	chat.dwType = DPSYS_CHAT;
+	chat.dwFlags = 0;
+	chat.idFromPlayer = from;
+	chat.idToGroup = 0;
+	chat.idToPlayer = to;
+	chat.lpChat = chatMsg;
+
+	DPMsg msg(from, to, DPMSG_TYPE_SYSTEM);
+	msg.AddToSerialize(chat);
+	msg.AddToSerialize(chatMsg, sizeof(DPCHAT));
+	msg.AddToSerialize(chatMsg->lpszMessageA, chatMsg->dwSize);
+	return msg.Serialize(reliable ? ENET_PACKET_FLAG_RELIABLE : 0);
+}
+
 /*!
 * @brief Translates internal network messages to DirectPlay messages
 * @return HResult error code or DP_OK in case of success
@@ -117,6 +134,8 @@ ENetPacket* DPMsg::CreateRoomInfo(GUID roomId, DWORD maxPlayers, DWORD currPlaye
 */
 HRESULT_INT DPMsg::FixSysMessage(LPVOID lpData, LPDWORD lpDataSize)
 {
+	ResetRead();
+
 	auto p = (DPMSG_GENERIC*)Read2(sizeof(DPMSG_GENERIC));
 	DWORD reqSize = 0;
 	ResetRead();
@@ -149,6 +168,15 @@ HRESULT_INT DPMsg::FixSysMessage(LPVOID lpData, LPDWORD lpDataSize)
 		reqSize = sizeof(DPMSG_DESTROYPLAYERORGROUP);
 		break;
 	}
+	case DPSYS_CHAT:
+	{
+		DPMSG_CHAT* msg = (DPMSG_CHAT*)Read2(sizeof(DPMSG_CHAT));
+		LPDPCHAT lpc = (LPDPCHAT)Read2(sizeof(DPCHAT));
+		msg->lpChat = lpc;
+		lpc->lpszMessageA = (char*)Read2(lpc->dwSize);
+		reqSize = sizeof(DPMSG_CHAT);
+		break;
+	}
 	default:
 		return DPERR_INVALIDOBJECT;
 	}
@@ -157,7 +185,10 @@ HRESULT_INT DPMsg::FixSysMessage(LPVOID lpData, LPDWORD lpDataSize)
 		return DPERR_BUFFERTOOSMALL;
 
 	if (lpData)
+	{
 		memcpy_s(lpData, *lpDataSize, p, reqSize);
+		m_pPk = nullptr; // TODO: THIS IS EXTREMELY BAD FIND A WAY TO AVOID THIS AT ANY COST
+	}
 
 	*lpDataSize = reqSize;
 	return DP_OK;

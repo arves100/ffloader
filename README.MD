@@ -3,6 +3,8 @@ NetLib.dll replacement for updating Fur Fighters with Quality of Life improvemen
 
 Requires an unpatched Fur Fighters 1.2
 
+Special thanks to ZaRR for netplay testing and support.
+
 ## Installing
 - Copy the "settings.txt", "levels.txt", "Levels" folder from a Fur Fighters CD to your Fur Fighters game
 - Copy NetLib.dll inside Fur Fighters and replace the file

@@ -9,7 +9,7 @@
 #include "DPPlayer.h"
 #include "DPMsg.h"
 
-using QueueMsg = std::vector<DPMsg>;
+using QueueMsg = std::vector<std::shared_ptr<DPMsg>>;
 
 class DPInstance final
 {
@@ -39,6 +39,8 @@ public:
 private:
 	bool GetAddressFromDPAddress(LPVOID lpConnection, ENetAddress* addr);
 	void Service(uint32_t time);
+	void SetupThreadedService();
+	HRESULT EnumSessionOut(LPDPENUMSESSIONSCALLBACK2 cb, LPVOID ctx);
 
 	ENetHost* m_pHost;
 
@@ -57,6 +59,8 @@ private:
 	bool m_bConnected;
 	ENetPeer* m_pClientPeer;
 	std::unordered_map<GUID, ENetAddress, GUIDHasher> m_vEnumAddr;
+	ENetAddress m_eConnectAddr;
+	GUID m_guidFF;
 
 	// ENet Thread
 	std::thread m_thread;

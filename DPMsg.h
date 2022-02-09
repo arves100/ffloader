@@ -14,6 +14,8 @@ enum DPMsgTypes
 	DPMSG_TYPE_NEWID = 1,
 	DPMSG_TYPE_CALL_NEWID = 2,
 	DPMSG_TYPE_GAME_INFO = 3,
+	DPMSG_TYPE_CHAT = 4,
+	DPMSG_TYPE_GAME = 5,
 };
 
 struct DPGameInfo
@@ -70,11 +72,11 @@ public:
 			m_pPk = ref;
 
 		m_nRawTotalSize = ref->dataLength - sizeof(Header);
-		m_nOffset = sizeof(Header);
+		m_nOffset = 0;
 	}
 
 	template <typename T>
-	void AddToSerialize(T data)
+	void AddToSerialize(T& data)
 	{
 		m_vRawData.push_back({ &data, sizeof(data)});
 		m_nRawTotalSize += sizeof(data);
@@ -104,7 +106,7 @@ public:
 
 	void ResetRead()
 	{
-		m_nOffset = sizeof(Header);
+		m_nOffset = 0;
 	}
 
 	LPBYTE Read2(size_t len)
@@ -126,6 +128,8 @@ public:
 	DPID GetFrom() const { return m_header.from; }
 	DPID GetTo() const { return m_header.to; }
 	BYTE GetType() const { return m_header.type; }
+	size_t GetRawSize() const { return m_nRawTotalSize; }
+	LPBYTE GetRaw() const { return m_lpRaw; }
 
 	/*!
 	* @brief Translates internal network messages to DirectPlay messages
@@ -140,6 +144,7 @@ public:
 	static ENetPacket* CallNewId();
 	static ENetPacket* NewId(DPID id);
 	static ENetPacket* CreateRoomInfo(GUID roomId, DWORD maxPlayers, DWORD currPlayers, const char* sessionName, DWORD user[4]);
+	static ENetPacket* ChatPacket(DPID from, DPID to, bool reliable, LPDPCHAT data);
 
 private:
 	struct RefData
