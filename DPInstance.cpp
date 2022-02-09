@@ -124,8 +124,25 @@ HRESULT DPInstance::GetCaps(LPDPCAPS lpDPCaps, DWORD dwFlags)
 
 HRESULT DPInstance::SendEx(DPID idFrom, DPID idTo, DWORD dwFlags, LPVOID lpData, DWORD dwDataSize, DWORD dwPriority, DWORD dwTimeout, LPVOID lpContext, LPDWORD lpdwMsgID)
 {
-	//printf("[LOADER] STUB: SendEx %u %u %u %p %u %u %u %p %p\n", idFrom, idTo, dwFlags, lpData, dwDataSize, dwPriority, dwTimeout, lpContext, lpdwMsgID);
-	return Send(idFrom, idTo, dwFlags, lpData, dwDataSize);
+	HRESULT hr = Send(idFrom, idTo, dwFlags, lpData, dwDataSize);
+
+	if (FAILED(hr))
+		return hr;
+
+	if (dwFlags & DPSEND_ASYNC)
+	{
+		if (!(dwFlags & DPSEND_NOSENDCOMPLETEMSG))
+		{
+			if (lpdwMsgID)
+				*lpdwMsgID = 0; // unused operation here
+
+			auto msg = std::make_shared<DPMsg>(DPMsg::CreateSendComplete(idFrom, idTo, dwFlags, dwPriority, dwTimeout, lpContext, 0, DP_OK, 0, 0), true);
+			m_vMessages.push_back(msg); // Add internal msg
+			return DPERR_PENDING;
+		}
+	}
+
+	return hr;
 }
 
 HRESULT DPInstance::SendChatMessage(DPID idFrom, DPID idTo, DWORD dwFlags, LPDPCHAT lpChatMessage)

@@ -147,6 +147,7 @@ public:
 	static ENetPacket* CreateRoomInfo(GUID roomId, DWORD maxPlayers, DWORD currPlayers, const char* sessionName, DWORD user[4]);
 	static ENetPacket* ChatPacket(DPID from, DPID to, bool reliable, LPDPCHAT data);
 	static ENetPacket* CreatePlayerRemote(const std::shared_ptr<DPPlayer>& player, bool reliable);
+	static ENetPacket* CreateSendComplete(DPID idFrom, DPID idTo, DWORD dwFlags, DWORD dwPriority, DWORD dwTimeout, LPVOID lpContext, DWORD lpdwMsgID, HRESULT hr, DWORD dwSendTime, DWORD dwType);
 
 private:
 	struct RefData

@@ -125,6 +125,24 @@ ENetPacket* DPMsg::CreatePlayerRemote(const std::shared_ptr<DPPlayer>& player, b
 	return msg.Serialize(reliable ? ENET_PACKET_FLAG_RELIABLE : 0);
 }
 
+ENetPacket* DPMsg::CreateSendComplete(DPID idFrom, DPID idTo, DWORD dwFlags, DWORD dwPriority, DWORD dwTimeout, LPVOID lpContext, DWORD lpdwMsgID, HRESULT hr, DWORD dwSendTime, DWORD dwType)
+{
+	DPMsg msg(idFrom, idTo, DPMSG_TYPE_SYSTEM);
+	DPMSG_SENDCOMPLETE msg2;
+	msg2.dwTimeout = dwTimeout;
+	msg2.idFrom = idFrom;
+	msg2.idTo = idTo;
+	msg2.dwFlags = dwFlags;
+	msg2.dwPriority = dwPriority;
+	msg2.dwType = dwType;
+	msg2.dwMsgID = lpdwMsgID;
+	msg2.lpvContext = lpContext;
+	msg2.hr = hr;
+	msg2.dwSendTime = dwSendTime;
+	msg.AddToSerialize(msg2);
+	return msg.Serialize();
+}
+
 /*!
 * @brief Translates internal network messages to DirectPlay messages
 * @return HResult error code or DP_OK in case of success
