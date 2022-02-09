@@ -7,6 +7,7 @@
 #pragma once
 
 #include "Loader.h"
+#include "DPMsgArena.h"
 
 class Globals
 {
@@ -35,6 +36,7 @@ public:
 	TCHAR GameDiskPath[MAX_PATH + 1];
 	LPVOID BaseAddress;
 	bool WindowedMode;
+	DPMsgArena* TheArena;
 
 private:
 	static Globals* ms_pSingleton;

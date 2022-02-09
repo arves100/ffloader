@@ -98,6 +98,9 @@
     <ClInclude Include="DPInstance.h">
       <Filter>File di intestazione</Filter>
     </ClInclude>
+    <ClInclude Include="DPMsgArena.h">
+      <Filter>File di intestazione</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="README.MD" />

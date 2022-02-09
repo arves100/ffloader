@@ -26,6 +26,10 @@ Globals::Globals()
 	memset(GameDiskPath, 0, sizeof(GameDiskPath));
 	BaseAddress = nullptr;
 	WindowedMode = false;
+	TheArena = new DPMsgArena(1024 * 1024 * 20); // 20MB
+
+	if (!TheLoader || !TheArena)
+		FATAL("Unable to allocate loader memory");
 }
 
 Globals* Globals::ms_pSingleton = nullptr;

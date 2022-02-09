@@ -6,6 +6,7 @@
 */
 #include "stdafx.h"
 #include "DPMsg.h"
+#include "Globals.h"
 
 // Destroy message:
 //		DPMSG_DESTROYPLAYERORGROUP
@@ -122,7 +123,9 @@ ENetPacket* DPMsg::ChatPacket(DPID from, DPID to, bool reliable, LPDPCHAT chatMs
 	DPMsg msg(from, to, DPMSG_TYPE_SYSTEM);
 	msg.AddToSerialize(chat);
 	msg.AddToSerialize(chatMsg, sizeof(DPCHAT));
-	msg.AddToSerialize(chatMsg->lpszMessageA, chatMsg->dwSize);
+	size_t len = strlen(chatMsg->lpszMessageA);
+	msg.AddToSerialize(len);
+	msg.AddToSerialize(chatMsg->lpszMessageA, len + 1);
 	return msg.Serialize(reliable ? ENET_PACKET_FLAG_RELIABLE : 0);
 }
 
@@ -140,18 +143,21 @@ HRESULT_INT DPMsg::FixSysMessage(LPVOID lpData, LPDWORD lpDataSize)
 	DWORD reqSize = 0;
 	ResetRead();
 
+	auto arena = Globals::Get()->TheArena;
+
 	switch (p->dwType)
 	{
 	case DPSYS_CREATEPLAYERORGROUP:
 	{
 		DPMSG_CREATEPLAYERORGROUP* msg = (DPMSG_CREATEPLAYERORGROUP*)Read2(sizeof(DPMSG_CREATEPLAYERORGROUP));
-		DPNameNet* nm = (DPNameNet*)Read2(sizeof(DPNameNet));
+		DPNameNet* nm = (DPNameNet*)arena->Store(Read2(sizeof(DPNameNet)), sizeof(DPNameNet));
 
 		if (msg->dwDataSize)
-			msg->lpData = (LPVOID)Read2(msg->dwDataSize);
+			msg->lpData = arena->Store(Read2(msg->dwDataSize), msg->dwDataSize);
 
 		msg->dpnName.lpszLongNameA = nm->longName;
 		msg->dpnName.lpszShortNameA = nm->shortName;
+
 		reqSize = sizeof(DPMSG_CREATEPLAYERORGROUP);
 		break;
 	}
@@ -160,10 +166,10 @@ HRESULT_INT DPMsg::FixSysMessage(LPVOID lpData, LPDWORD lpDataSize)
 		DPMSG_DESTROYPLAYERORGROUP* msg = (DPMSG_DESTROYPLAYERORGROUP*)Read2(sizeof(DPMSG_DESTROYPLAYERORGROUP));
 
 		if (msg->dwLocalDataSize)
-			msg->lpLocalData = Read2(msg->dwLocalDataSize);
+			msg->lpLocalData = arena->Store(Read2(msg->dwLocalDataSize), msg->dwLocalDataSize);
 
 		if (msg->dwRemoteDataSize)
-			msg->lpRemoteData = Read2(msg->dwRemoteDataSize);
+			msg->lpRemoteData = arena->Store(Read2(msg->dwRemoteDataSize), msg->dwRemoteDataSize);
 
 		reqSize = sizeof(DPMSG_DESTROYPLAYERORGROUP);
 		break;
@@ -171,9 +177,16 @@ HRESULT_INT DPMsg::FixSysMessage(LPVOID lpData, LPDWORD lpDataSize)
 	case DPSYS_CHAT:
 	{
 		DPMSG_CHAT* msg = (DPMSG_CHAT*)Read2(sizeof(DPMSG_CHAT));
-		LPDPCHAT lpc = (LPDPCHAT)Read2(sizeof(DPCHAT));
+		LPDPCHAT lpc = (LPDPCHAT)arena->Store(Read2(sizeof(DPCHAT)), sizeof(DPCHAT));
+
 		msg->lpChat = lpc;
-		lpc->lpszMessageA = (char*)Read2(lpc->dwSize);
+
+		size_t len;
+		Read(len);
+		len += 1;
+
+		lpc->lpszMessageA = (LPSTR)arena->Store(Read2(len), len);
+
 		reqSize = sizeof(DPMSG_CHAT);
 		break;
 	}
@@ -185,10 +198,7 @@ HRESULT_INT DPMsg::FixSysMessage(LPVOID lpData, LPDWORD lpDataSize)
 		return DPERR_BUFFERTOOSMALL;
 
 	if (lpData)
-	{
 		memcpy_s(lpData, *lpDataSize, p, reqSize);
-		m_pPk = nullptr; // TODO: THIS IS EXTREMELY BAD FIND A WAY TO AVOID THIS AT ANY COST
-	}
 
 	*lpDataSize = reqSize;
 	return DP_OK;

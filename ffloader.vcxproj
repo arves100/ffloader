@@ -33,6 +33,7 @@
   <ItemGroup>
     <ClInclude Include="DPInstance.h" />
     <ClInclude Include="DPMsg.h" />
+    <ClInclude Include="DPMsgArena.h" />
     <ClInclude Include="DPPlayer.h" />
     <ClInclude Include="enet.h" />
     <ClInclude Include="LDetours.h" />
