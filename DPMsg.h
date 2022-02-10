@@ -26,6 +26,16 @@ struct DPGameInfo
 	DWORD currPlayers;
 	char sessionName[100];
 	DWORD user[4];
+	DWORD flags;
+};
+
+struct DPPlayerInfo
+{
+	DPID id;
+	char name[40];
+	char longName[100];
+	DWORD curr;
+	DWORD dwDataSize;
 };
 
 /*!
@@ -91,7 +101,7 @@ public:
 
 	ENetPacket* Serialize(uint32_t flag = ENET_PACKET_FLAG_RELIABLE)
 	{
-		auto pk = enet_packet_create(nullptr, sizeof(Header) + m_nRawTotalSize, flag);
+		auto pk = enet_packet_create(nullptr, sizeof(Header) + m_nRawTotalSize, ENET_PACKET_FLAG_RELIABLE);
 		size_t cnt = sizeof(m_header);
 
 		memcpy_s(pk->data, pk->dataLength, &m_header, sizeof(m_header));
@@ -142,12 +152,13 @@ public:
 
 	static ENetPacket* NewPlayer(const std::shared_ptr<DPPlayer>& player, DWORD oldPlayer);
 	static ENetPacket* DestroyPlayer(const std::shared_ptr<DPPlayer>& player);
-	static ENetPacket* CallNewId();
+	static ENetPacket* CallNewId(LPDPNAME lpData);
 	static ENetPacket* NewId(DPID id);
-	static ENetPacket* CreateRoomInfo(GUID roomId, DWORD maxPlayers, DWORD currPlayers, const char* sessionName, DWORD user[4]);
+	static ENetPacket* CreateRoomInfo(GUID roomId, DWORD maxPlayers, DWORD currPlayers, const char* sessionName, DWORD user[4], DWORD dwFlags);
 	static ENetPacket* ChatPacket(DPID from, DPID to, bool reliable, LPDPCHAT data);
 	static ENetPacket* CreatePlayerRemote(const std::shared_ptr<DPPlayer>& player, bool reliable);
-	static ENetPacket* CreateSendComplete(DPID idFrom, DPID idTo, DWORD dwFlags, DWORD dwPriority, DWORD dwTimeout, LPVOID lpContext, DWORD lpdwMsgID, HRESULT hr, DWORD dwSendTime, DWORD dwType);
+	static ENetPacket* CreateSendComplete(DPID idFrom, DPID idTo, DWORD dwFlags, DWORD dwPriority, DWORD dwTimeout, LPVOID lpContext, DWORD lpdwMsgID, HRESULT hr, DWORD dwSendTime);
+	static ENetPacket* PlayerInfo(DPID id, const char* name, const char* longName, DWORD currPlayers, DWORD remoteDataSize, LPVOID lpDataSize);
 
 private:
 	struct RefData

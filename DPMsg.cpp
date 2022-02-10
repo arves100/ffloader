@@ -68,9 +68,19 @@ ENetPacket* DPMsg::NewPlayer(const std::shared_ptr<DPPlayer>& player, DWORD oldP
 	return dpMsg.Serialize();
 }
 
-ENetPacket* DPMsg::CallNewId()
+ENetPacket* DPMsg::CallNewId(LPDPNAME lpData)
 {
-	return DPMsg(0, 0, DPMSG_TYPE_CALL_NEWID).Serialize();
+	DPMsg msg(0, 0, DPMSG_TYPE_CALL_NEWID);
+	DPPlayerInfo nfo = { 0 };
+
+	if (lpData->lpszLongNameA)
+		strncpy_s(nfo.longName, 100, lpData->lpszLongNameA, 100);
+	if (lpData->lpszShortNameA)
+		strncpy_s(nfo.name, 40, lpData->lpszShortNameA, 40);
+	
+	msg.AddToSerialize(nfo);
+
+	return msg.Serialize();
 }
 
 ENetPacket* DPMsg::NewId(DPID id)
@@ -80,7 +90,7 @@ ENetPacket* DPMsg::NewId(DPID id)
 	return msg.Serialize();
 }
 
-ENetPacket* DPMsg::CreateRoomInfo(GUID roomId, DWORD maxPlayers, DWORD currPlayers, const char* sessionName, DWORD user[4])
+ENetPacket* DPMsg::CreateRoomInfo(GUID roomId, DWORD maxPlayers, DWORD currPlayers, const char* sessionName, DWORD user[4], DWORD dwFlags)
 {
 	DPGameInfo info;
 	info.session = roomId;
@@ -88,6 +98,7 @@ ENetPacket* DPMsg::CreateRoomInfo(GUID roomId, DWORD maxPlayers, DWORD currPlaye
 	info.currPlayers = currPlayers;
 	strncpy_s(info.sessionName, _countof(info.sessionName), sessionName, 100);
 	memcpy_s(info.user, sizeof(info.user), user, sizeof(info.user));
+	info.flags = dwFlags;
 	DPMsg msg(DPID_SYSMSG, DPID_SYSMSG, DPMSG_TYPE_GAME_INFO);
 	msg.AddToSerialize(info);
 	return msg.Serialize();
@@ -125,22 +136,53 @@ ENetPacket* DPMsg::CreatePlayerRemote(const std::shared_ptr<DPPlayer>& player, b
 	return msg.Serialize(reliable ? ENET_PACKET_FLAG_RELIABLE : 0);
 }
 
-ENetPacket* DPMsg::CreateSendComplete(DPID idFrom, DPID idTo, DWORD dwFlags, DWORD dwPriority, DWORD dwTimeout, LPVOID lpContext, DWORD lpdwMsgID, HRESULT hr, DWORD dwSendTime, DWORD dwType)
+ENetPacket* DPMsg::CreateSendComplete(DPID idFrom, DPID idTo, DWORD dwFlags, DWORD dwPriority, DWORD dwTimeout, LPVOID lpContext, DWORD lpdwMsgID, HRESULT hr, DWORD dwSendTime)
 {
 	DPMsg msg(idFrom, idTo, DPMSG_TYPE_SYSTEM);
 	DPMSG_SENDCOMPLETE msg2;
+	msg2.dwType = DPSYS_SENDCOMPLETE;
 	msg2.dwTimeout = dwTimeout;
 	msg2.idFrom = idFrom;
 	msg2.idTo = idTo;
 	msg2.dwFlags = dwFlags;
 	msg2.dwPriority = dwPriority;
-	msg2.dwType = dwType;
 	msg2.dwMsgID = lpdwMsgID;
 	msg2.lpvContext = lpContext;
 	msg2.hr = hr;
 	msg2.dwSendTime = dwSendTime;
 	msg.AddToSerialize(msg2);
 	return msg.Serialize();
+}
+
+/*
+	DPID id;
+	char name[40];
+	char longName[100];
+	DWORD curr;
+	DWORD dwDataSize;
+*/
+
+ENetPacket* DPMsg::PlayerInfo(DPID id, const char* name, const char* longName, DWORD currPlayers, DWORD remoteDataSize, LPVOID lpData)
+{
+#if 0
+	DPPlayerInfo info = { 0 };
+	info.curr = currPlayers;
+
+	if (name)
+		strcpy(info.name, name);
+
+	if (longName)
+		strcpy(info.longName, longName);
+
+	info.id = id;
+	info.dwDataSize = remoteDataSize;
+
+	DPMsg msg(0, id, DPMSG_TYPE_REMOTEINFO);
+	msg.AddToSerialize(info);
+	msg.AddToSerialize(lpData, remoteDataSize);
+	return msg.Serialize();
+#endif
+	return nullptr;
 }
 
 /*!
@@ -161,6 +203,12 @@ HRESULT_INT DPMsg::FixSysMessage(LPVOID lpData, LPDWORD lpDataSize)
 
 	switch (p->dwType)
 	{
+	case DPSYS_SENDCOMPLETE:
+	{
+		DPMSG_SENDCOMPLETE* msg = (DPMSG_SENDCOMPLETE*)Read2(sizeof(DPMSG_SENDCOMPLETE));
+		reqSize = sizeof(DPMSG_SENDCOMPLETE);
+		break;
+	}
 	case DPSYS_CREATEPLAYERORGROUP:
 	{
 		DPMSG_CREATEPLAYERORGROUP* msg = (DPMSG_CREATEPLAYERORGROUP*)Read2(sizeof(DPMSG_CREATEPLAYERORGROUP));

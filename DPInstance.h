@@ -54,6 +54,7 @@ private:
 
 	// Server
 	DWORD m_dwMaxPlayers;
+	DWORD m_dwFlags;
 
 	// Client
 	bool m_bConnected;

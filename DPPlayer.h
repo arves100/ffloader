@@ -65,6 +65,7 @@ public:
 
 	void FireEvent();
 	void Create(DPID id, const char* shortName, const char* longName, HANDLE hEvent, LPVOID lpData, DWORD dwDataSize, bool spectator, bool madeByHost);
+	void SetPeer(ENetPeer* p) { m_pPeer = p; }
 
 private:
 	DPID m_dwId;

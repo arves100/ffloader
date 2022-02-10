@@ -12,6 +12,7 @@
 #define LOG(fmt, ...) MessageBoxA(Globals::Get()->GameWindow, #fmt, "", 0);
 #define ENET_BUFFER_SIZE 1024
 #define FURFIGHTERS_PORT 24900U
+#define ENET_SERVICE_TIME 1000
 
 enum ENetChannels
 {
@@ -28,6 +29,7 @@ DPInstance::DPInstance(void)
 	m_bService = false;
 	m_bConnected = false;
 	m_pClientPeer = nullptr;
+	m_dwFlags = 0;
 
 	enet_initialize();
 	printf("[LOADER] Enet initialization\n");
@@ -93,7 +95,7 @@ HRESULT DPInstance::EnumSessions(LPDPSESSIONDESC2 lpsd, DWORD dwTimeout, LPDPENU
 		}
 
 		if (dwTimeout == 0)
-			dwTimeout = 5000; // DEFAULT
+			dwTimeout = ENET_SERVICE_TIME; // DEFAULT
 
 		printf("[LOADER] Servicing sessions for %d time...\n", dwTimeout);
 		Service(dwTimeout);
@@ -102,7 +104,7 @@ HRESULT DPInstance::EnumSessions(LPDPSESSIONDESC2 lpsd, DWORD dwTimeout, LPDPENU
 			return DPERR_NOCONNECTION;
 
 		printf("[LOADER] Servicing sessions for %d time to receive data...\n", dwTimeout);
-		Service(5000);
+		Service(ENET_SERVICE_TIME);
 	}
 	else
 	{
@@ -118,7 +120,20 @@ HRESULT DPInstance::EnumSessions(LPDPSESSIONDESC2 lpsd, DWORD dwTimeout, LPDPENU
 
 HRESULT DPInstance::GetCaps(LPDPCAPS lpDPCaps, DWORD dwFlags)
 {
-	printf("[LOADER] STUB: GetGaps %p %u\n", lpDPCaps, dwFlags);
+	lpDPCaps->dwSize = sizeof(DPCAPS);
+	lpDPCaps->dwFlags = 0;
+
+	if (m_bHost)
+		lpDPCaps->dwFlags |= DPCAPS_ISHOST;
+
+	lpDPCaps->dwMaxBufferSize = ENET_BUFFER_SIZE;
+	lpDPCaps->dwMaxQueueSize = 0;
+	lpDPCaps->dwMaxPlayers = m_dwMaxPlayers;
+	lpDPCaps->dwHundredBaud = 24;
+	lpDPCaps->dwLatency = 0;
+	lpDPCaps->dwMaxLocalPlayers = m_dwMaxPlayers;
+	lpDPCaps->dwTimeout = 0;
+
 	return DP_OK;
 }
 
@@ -134,9 +149,9 @@ HRESULT DPInstance::SendEx(DPID idFrom, DPID idTo, DWORD dwFlags, LPVOID lpData,
 		if (!(dwFlags & DPSEND_NOSENDCOMPLETEMSG))
 		{
 			if (lpdwMsgID)
-				*lpdwMsgID = 0; // unused operation here
+				*lpdwMsgID = m_vMessages.size() + 1; // unused operation here
 
-			auto msg = std::make_shared<DPMsg>(DPMsg::CreateSendComplete(idFrom, idTo, dwFlags, dwPriority, dwTimeout, lpContext, 0, DP_OK, 0, 0), true);
+			auto msg = std::make_shared<DPMsg>(DPMsg::CreateSendComplete(idFrom, idTo, dwFlags, dwPriority, dwTimeout, lpContext, 0, DP_OK, 0), true);
 			m_vMessages.push_back(msg); // Add internal msg
 			return DPERR_PENDING;
 		}
@@ -175,6 +190,7 @@ HRESULT DPInstance::SendChatMessage(DPID idFrom, DPID idTo, DWORD dwFlags, LPDPC
 
 HRESULT DPInstance::SetSessionDesc(LPDPSESSIONDESC2 lpSessDesc, DWORD dwFlags)
 {
+	printf("[LOADER] STUB: SetSessionDesc %x %d\n", lpSessDesc, dwFlags);
 	return DP_OK;
 }
 
@@ -184,7 +200,18 @@ HRESULT DPInstance::Send(DPID idFrom, DPID idTo, DWORD dwFlags, LPVOID lpData, D
 	msg.AddToSerialize(dwDataSize);
 
 	if (lpData)
+	{
 		msg.AddToSerialize(lpData, dwDataSize);
+
+		printf("[LOADER] Msg: ");
+
+		for (auto m = 0; m < dwDataSize; m++)
+		{
+			printf("%x ", *(LPBYTE*)lpData + m);
+		}
+
+		printf("\n");
+	}
 	
 	if (m_bHost)
 	{
@@ -192,7 +219,7 @@ HRESULT DPInstance::Send(DPID idFrom, DPID idTo, DWORD dwFlags, LPVOID lpData, D
 		{
 			enet_host_broadcast(m_pHost, ENET_CHANNEL_NORMAL, msg.Serialize((dwFlags & DPSEND_GUARANTEED) ? ENET_PACKET_FLAG_RELIABLE : 0));
 		}
-		else
+		else if (idTo != 1)
 		{
 			auto p = m_vPlayers.find(idTo);
 
@@ -200,6 +227,11 @@ HRESULT DPInstance::Send(DPID idFrom, DPID idTo, DWORD dwFlags, LPVOID lpData, D
 				return DPERR_INVALIDPLAYER;
 
 			enet_peer_send(p->second->GetPeer(), ENET_CHANNEL_NORMAL, msg.Serialize((dwFlags & DPSEND_GUARANTEED) ? ENET_PACKET_FLAG_RELIABLE : 0));
+		}
+		else
+		{ // send msg to self
+			auto sMsg = std::make_shared<DPMsg>(msg.Serialize(0), true);
+			m_vMessages.push_back(sMsg);
 		}
 	}
 	else
@@ -290,15 +322,39 @@ HRESULT DPInstance::Receive(LPDPID lpidFrom, LPDPID lpidTo, DWORD dwFlags, LPVOI
 					m_vPlayers.erase(p); // bye bye,,...
 				}
 			}
+			else if (*(DWORD*)lpData == DPSYS_CREATEPLAYERORGROUP && !m_bHost) // Add player to the current players
+			{
+				DPMSG_CREATEPLAYERORGROUP* msg = (DPMSG_CREATEPLAYERORGROUP*)lpData;
+
+				auto newPlayer = std::make_shared<DPPlayer>();
+				newPlayer->Create(msg->dpId, msg->dpnName.lpszShortNameA, msg->dpnName.lpszLongNameA, nullptr, nullptr, 0, false, false);
+				m_vPlayers.insert_or_assign(newPlayer->GetId(), newPlayer);
+			}
 		}
-		else
+		else if (it->GetType() == DPMSG_TYPE_NEWID)
 		{
-			*lpdwDataSize = it->GetRawSize();
+			if (!m_bHost)
+			{
+				m_pClientPeer->data = (LPVOID) * (DPID*)it->Read2(sizeof(DPID));
+				printf("[LOADER] New peer id %d", (DPID)m_pClientPeer->data);
+			}
+
+			m_vMessages.erase(it2);
+			return DPERR_NOMESSAGES; // no queue and rm this internal msg
+		}
+		else if (it->GetType() == DPMSG_TYPE_GAME)
+		{
+			*lpdwDataSize = *(DWORD*)it->Read2(sizeof(DWORD));
 
 			if (lastSize < *lpdwDataSize)
 				return DPERR_BUFFERTOOSMALL;
 
-			memcpy_s(lpData, lastSize, it->GetRaw(), *lpdwDataSize);
+			memcpy_s(lpData, lastSize, it->Read2(*lpdwDataSize), *lpdwDataSize);
+
+			printf("[LOADER] Dump ");
+			for (auto m = 0; m < *lpdwDataSize; m++)
+				printf("%x ", *(CHAR*)lpData + m);
+			printf("\n");
 		}
 
 		if (!(dwFlags & DPRECEIVE_PEEK))
@@ -341,11 +397,11 @@ HRESULT DPInstance::CreatePlayer(LPDPID lpidPlayer, LPDPNAME lpPlayerName, HANDL
 			return DPERR_NOCONNECTION;
 	}
 
-	if (m_pHost)
+	if (m_bHost)
 		*lpidPlayer = (DWORD)m_vPlayers.size() + 1;
 	else
 	{ // CLIENT: Ask the network for a new player id
-		enet_peer_send(m_pClientPeer, ENET_CHANNEL_NORMAL, DPMsg::CallNewId());
+		enet_peer_send(m_pClientPeer, ENET_CHANNEL_NORMAL, DPMsg::CallNewId(lpPlayerName));
 
 		printf("[LOADER] Getting peer id from server...\n");
 
@@ -360,7 +416,10 @@ HRESULT DPInstance::CreatePlayer(LPDPID lpidPlayer, LPDPNAME lpPlayerName, HANDL
 			}
 
 			if (m_pClientPeer->data != 0)
+			{
+				*lpidPlayer = (DPID)m_pClientPeer->data;
 				break;
+			}
 		}
 	}
 
@@ -446,11 +505,14 @@ void DPInstance::Service(uint32_t timeout)
 				printf("[LOADER] Sending game info to peer\n");
 				
 				// SERVER: Send game info to client
-				enet_peer_send(evt.peer, ENET_CHANNEL_NORMAL, DPMsg::CreateRoomInfo(m_gSession, m_dwMaxPlayers, m_vPlayers.size(), m_szGameName.c_str(), m_adwUser));
+				enet_peer_send(evt.peer, ENET_CHANNEL_NORMAL, DPMsg::CreateRoomInfo(m_gSession, m_dwMaxPlayers, m_vPlayers.size(), m_szGameName.c_str(), m_adwUser, m_dwFlags));
 				//enet_peer_disconnect(evt.peer, 0);
 			}
 			else
+			{
 				printf("[LOADER] New peer connect\n");
+				break; // Do not add this internal message to the queue
+			}
 
 			break;
 
@@ -464,11 +526,30 @@ void DPInstance::Service(uint32_t timeout)
 			{
 				// Setup peer id and send it back
 				if (msg->GetType() == DPMSG_TYPE_CALL_NEWID)
-				{ 
+				{
+					DPPlayerInfo* pInfo = (DPPlayerInfo*)msg->Read2(sizeof(DPPlayerInfo));
+
 					DPID id = (DPID)m_vPlayers.size() + 1;
 					enet_peer_send(evt.peer, ENET_CHANNEL_NORMAL, DPMsg::NewId(id));
 					evt.peer->data = (LPVOID)id; // set id which means the player is authenticated
 					printf("[LOADER] New peer id %u\n", id);
+
+					for (const auto& pp : m_vPlayers)
+					{
+						auto pinfo = pp.second;
+						enet_peer_send(evt.peer, ENET_CHANNEL_NORMAL, DPMsg::NewPlayer(pinfo, (DWORD)m_vPlayers.size()));
+					}
+
+					auto pp = std::make_shared<DPPlayer>();
+					pp->Create(id, pInfo->name[0] ? pInfo->name : nullptr, pInfo->longName[0] ? pInfo->longName : nullptr, nullptr, pInfo->dwDataSize ? msg->Read2(pInfo->dwDataSize) : nullptr, pInfo->dwDataSize, false, false);
+					pp->SetPeer(evt.peer);
+
+					auto sMsg = std::make_shared<DPMsg>(DPMsg::NewPlayer(pp, m_vPlayers.size()), true);
+					m_vMessages.push_back(sMsg);
+
+
+					m_vPlayers.insert_or_assign(id, pp);
+
 					break; // Do not add this internal message to the queue
 				}
 			}
@@ -476,7 +557,8 @@ void DPInstance::Service(uint32_t timeout)
 			{
 				if (msg->GetType() == DPMSG_TYPE_NEWID)
 				{
-					m_pClientPeer->data = (LPVOID)msg->Read2(sizeof(DPID)); // Assign the readed id
+					evt.peer->data = (LPVOID)msg->Read2(sizeof(DPID)); // Assign the readed id
+					m_pClientPeer->data = evt.peer->data;
 					printf("[LOADER] Assigned peer id from server %u\n", (DPID)m_pClientPeer->data);
 					break; // Do not add this internal message to the queue
 				}
@@ -498,8 +580,11 @@ void DPInstance::Service(uint32_t timeout)
 			if (evt.peer->data != 0)
 			{
 				auto p = m_vPlayers[(DPID)evt.peer->data];
-				if (msg->GetTo() == p->GetId())
-					p->FireEvent(); // Fire handle event as specified by DirectPlay
+				if (p.get())
+				{
+					if (msg->GetTo() == p->GetId())
+						p->FireEvent(); // Fire handle event as specified by DirectPlay
+				}
 			}
 
 			m_vMessages.push_back(msg);
@@ -567,7 +652,7 @@ HRESULT DPInstance::Open(LPDPSESSIONDESC2 lpsd, DWORD dwFlags)
 		m_bHost = true;
 		m_szGameName = lpsd->lpszSessionNameA;
 		m_dwMaxPlayers = lpsd->dwMaxPlayers;
-			
+		m_dwFlags = lpsd->dwFlags;
 	}
 	else if (dwFlags == DPOPEN_JOIN)
 	{
@@ -606,7 +691,7 @@ HRESULT DPInstance::Open(LPDPSESSIONDESC2 lpsd, DWORD dwFlags)
 
 		//return DPERR_CONNECTING;
 
-		Service(5000);
+		Service(ENET_SERVICE_TIME);
 
 		if (!m_bConnected)
 		{
@@ -646,7 +731,7 @@ HRESULT DPInstance::Close(void)
 		}
 
 		printf("[LOADER] Service to disconnect everything....\n");
-		Service(5000); // let everything disconnect gracefully
+		Service(ENET_SERVICE_TIME); // let everything disconnect gracefully
 
 		if (m_pClientPeer) // CLIENT: reset peer
 		{
@@ -755,7 +840,29 @@ HRESULT DPInstance::EnumConnections(LPCGUID lpguidApplication, LPDPENUMCONNECTIO
 
 HRESULT DPInstance::GetSessionDesc(LPVOID lpData, LPDWORD lpdwDataSize)
 {
-	printf("[LOADER] STUB: GetSessionDesc %p %p %u\n", lpData, lpdwDataSize, *lpdwDataSize);
+	if (*lpdwDataSize < sizeof(DPSESSIONDESC2))
+		return DPERR_BUFFERTOOSMALL;
+
+	if (lpData)
+	{
+		LPDPSESSIONDESC2 desc = (LPDPSESSIONDESC2)lpData;
+		desc->dwSize = sizeof(DPSESSIONDESC2);
+		desc->dwFlags = 0;
+		desc->guidApplication = m_guidFF;
+		desc->guidInstance = m_gSession;
+		desc->dwMaxPlayers = m_dwMaxPlayers;
+		desc->dwCurrentPlayers = (DWORD)m_vPlayers.size();
+		desc->dwReserved1 = 0;
+		desc->dwReserved2 = 0;
+		desc->dwUser1 = m_adwUser[0];
+		desc->dwUser2 = m_adwUser[1];
+		desc->dwUser3 = m_adwUser[2];
+		desc->dwUser4 = m_adwUser[3];
+		desc->lpszPasswordA = nullptr;
+		desc->lpszSessionNameA = (LPSTR)m_szGameName.c_str();
+		desc->dwFlags = m_dwFlags;
+	}
+
 	return DP_OK;
 }
 
@@ -821,7 +928,7 @@ HRESULT DPInstance::EnumSessionOut(LPDPENUMSESSIONSCALLBACK2 cb, LPVOID ctx)
 			DPGameInfo* info = (DPGameInfo*)it->Read2(sizeof(DPGameInfo));
 			DPSESSIONDESC2 desc;
 			desc.dwSize = sizeof(desc);
-			desc.dwFlags = 0;
+			desc.dwFlags = info->flags;
 			desc.dwUser1 = info->user[0];
 			desc.dwUser2 = info->user[1];
 			desc.dwUser3 = info->user[2];
@@ -834,6 +941,11 @@ HRESULT DPInstance::EnumSessionOut(LPDPENUMSESSIONSCALLBACK2 cb, LPVOID ctx)
 			desc.guidInstance = info->session;
 			desc.dwMaxPlayers = info->maxPlayers;
 			desc.dwCurrentPlayers = info->currPlayers;
+
+			m_dwMaxPlayers = info->maxPlayers;
+			m_gSession = info->session;
+			m_szGameName = info->sessionName;
+			m_dwFlags = info->flags;
 
 			printf("[LOADER] EnumSession got lobby %s\n", info->sessionName);
 
