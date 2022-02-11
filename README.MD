@@ -4,6 +4,8 @@ NetLib.dll replacement for updating Fur Fighters with Quality of Life improvemen
 Requires latest Fur Fighters v1.2
 Special thanks to ZaRR for netplay testing and support.
 
+[Discord](https://discord.gg/zgSVGSs)
+
 ## Network play
 If your connection is under NAT, we suggest using solutions like ZeroTier.
 The UDP port is 24900.
