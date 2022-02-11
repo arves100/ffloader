@@ -1,7 +1,7 @@
 # Fur Fighters Loader by Arves100
 NetLib.dll replacement for updating Fur Fighters with Quality of Life improvements.
 
-Requires latest Fur Fighters v1.2
+[Requires latest Fur Fighters v1.2](https://drive.google.com/file/d/1TxlPDFh1MC5UQElJR7qfq4QCHTwM_jyT)
 Special thanks to ZaRR for netplay testing and support.
 
 [Discord](https://discord.gg/zgSVGSs)
