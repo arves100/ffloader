@@ -9,10 +9,13 @@
 #include "Globals.h"
 #include "DPMsg.h"
 
-#define LOG(fmt, ...) MessageBoxA(Globals::Get()->GameWindow, #fmt, "", 0);
 #define ENET_BUFFER_SIZE 1024
 #define FURFIGHTERS_PORT 24900U
 #define ENET_SERVICE_TIME 1000
+
+#define TIMEOUT1 32
+#define TIMEOUT2 5000
+#define TIMEOUT3 10000
 
 enum ENetChannels
 {
@@ -32,7 +35,10 @@ DPInstance::DPInstance(void)
 	m_dwFlags = 0;
 
 	enet_initialize();
+
+#ifdef _DEBUG
 	printf("[LOADER] Enet initialization\n");
+#endif
 }
 
 DPInstance::~DPInstance(void)
@@ -62,13 +68,17 @@ DPInstance::~DPInstance(void)
 		enet_host_destroy(m_pHost);
 	}
 
+#ifdef _DEBUG
 	printf("[LOADER] Enet destruction\n");
+#endif
 	enet_deinitialize();
 }
 
 HRESULT DPInstance::AddPlayerToGroup(DPID idGroup, DPID idPlayer)
 {
+#ifdef _DEBUG
 	printf("[LOADER] STUB: AddPlayerToGroup %d %d\n", idGroup, idPlayer);
+#endif
 	return DP_OK;
 }
 
@@ -77,7 +87,9 @@ HRESULT DPInstance::EnumSessions(LPDPSESSIONDESC2 lpsd, DWORD dwTimeout, LPDPENU
 	char addr[40];
 	enet_address_get_ip(&m_eConnectAddr, addr, 40);
 
+#ifdef _DEBUG
 	printf("[LOADER] Start enum session %s:%d\n", addr, m_eConnectAddr.port);
+#endif
 	m_pClientPeer = enet_host_connect(m_pHost, &m_eConnectAddr, ENET_CHANNEL_MAX, 0);
 
 	if (!m_pClientPeer)
@@ -87,31 +99,43 @@ HRESULT DPInstance::EnumSessions(LPDPSESSIONDESC2 lpsd, DWORD dwTimeout, LPDPENU
 
 	if (!m_bService)
 	{
+#ifdef _DEBUG
+		printf("[LOADER] Setup async session...\n");
+#endif
+		m_ullServiceTimeout = ENET_SERVICE_TIME;
+		
 		if (dwFlags & DPENUMSESSIONS_ASYNC)
 		{
-			printf("[LOADER] Setup async session...\n");
-			SetupThreadedService();
+			SetupThreadedService(dwFlags & DPENUMSESSIONS_ASYNC);
 			return DP_OK;
 		}
 
+#if 1
 		if (dwTimeout == 0)
 			dwTimeout = ENET_SERVICE_TIME; // DEFAULT
 
+#ifdef _DEBUG
 		printf("[LOADER] Servicing sessions for %d time...\n", dwTimeout);
+#endif
 		Service(dwTimeout);
 
 		if (!m_bConnected)
 			return DPERR_NOCONNECTION;
 
+#ifdef _DEBUG
 		printf("[LOADER] Servicing sessions for %d time to receive data...\n", dwTimeout);
+#endif
 		Service(ENET_SERVICE_TIME);
+#endif
 	}
 	else
 	{
 		if (dwFlags & DPENUMSESSIONS_STOPASYNC)
 			return EnumSessionOut(lpEnumSessionsCallback2, lpContext);
 
+#ifdef _DEBUG
 		printf("[LOADER] EnumSession only works with STOPASYNC when started\n");
+#endif
 		return DPERR_INVALIDPARAMS;
 	}
 
@@ -162,7 +186,9 @@ HRESULT DPInstance::SendEx(DPID idFrom, DPID idTo, DWORD dwFlags, LPVOID lpData,
 
 HRESULT DPInstance::SendChatMessage(DPID idFrom, DPID idTo, DWORD dwFlags, LPDPCHAT lpChatMessage)
 {
+#ifdef _DEBUG
 	printf("[LOADER] Send chat message %s to %u\n", lpChatMessage->lpszMessageA, idTo);
+#endif
 
 	if (m_bHost)
 	{
@@ -182,6 +208,9 @@ HRESULT DPInstance::SendChatMessage(DPID idFrom, DPID idTo, DWORD dwFlags, LPDPC
 	}
 	else
 	{
+		if (!m_pClientPeer)
+			return DPERR_CONNECTIONLOST;
+
 		enet_peer_send(m_pClientPeer, ENET_CHANNEL_CHAT, DPMsg::ChatPacket(idFrom, idTo, dwFlags & DPSEND_GUARANTEED, lpChatMessage));
 	}
 
@@ -190,7 +219,9 @@ HRESULT DPInstance::SendChatMessage(DPID idFrom, DPID idTo, DWORD dwFlags, LPDPC
 
 HRESULT DPInstance::SetSessionDesc(LPDPSESSIONDESC2 lpSessDesc, DWORD dwFlags)
 {
-	printf("[LOADER] STUB: SetSessionDesc %x %d\n", lpSessDesc, dwFlags);
+#ifdef _DEBUG
+	printf("[LOADER] STUB: SetSessionDesc %p %u\n", lpSessDesc, dwFlags);
+#endif
 	return DP_OK;
 }
 
@@ -203,14 +234,16 @@ HRESULT DPInstance::Send(DPID idFrom, DPID idTo, DWORD dwFlags, LPVOID lpData, D
 	{
 		msg.AddToSerialize(lpData, dwDataSize);
 
+#ifdef _DEBUG
 		printf("[LOADER] Msg: ");
 
-		for (auto m = 0; m < dwDataSize; m++)
+		for (DWORD m = 0; m < dwDataSize; m++)
 		{
-			printf("%x ", *(LPBYTE*)lpData + m);
+			printf("%x ", (int) * (LPBYTE*)lpData + m);
 		}
 
 		printf("\n");
+#endif
 	}
 	
 	if (m_bHost)
@@ -247,30 +280,37 @@ HRESULT DPInstance::Send(DPID idFrom, DPID idTo, DWORD dwFlags, LPVOID lpData, D
 
 HRESULT DPInstance::CreateGroup(LPDPID lpidGroup, LPDPNAME lpGroupName, LPVOID lpData, DWORD dwDataSize, DWORD dwFlags)
 {
+#ifdef _DEBUG
 	printf("[LOADER] STUB: CreateGroup %p %p %p %d\n", lpidGroup, lpGroupName, lpData, dwDataSize);
+#endif
 	return DP_OK;
 }
 
 HRESULT DPInstance::Receive(LPDPID lpidFrom, LPDPID lpidTo, DWORD dwFlags, LPVOID lpData, LPDWORD lpdwDataSize)
 {
+	Service(0); // Service enet then dispatch the messages
+
 	auto a = Globals::Get()->TheArena;
 
-	if (!m_bConnected && !m_bHost)
-		return DPERR_NOCONNECTION;
+	// we can't get the thing otherwise
+	//if (!m_bConnected && !m_bHost)
+	//	return DPERR_NOCONNECTION;
 
 	if (dwFlags == 0)
 		dwFlags = DPRECEIVE_ALL;
 
 	if (!m_pHost)
 	{
+#ifdef _DEBUG
 		printf("[LOADER] RECEIVE HOST IS INVALID!!!\n");
+#endif
 		return DPERR_GENERIC;
 	}
 
-	Service(0); // Service enet then dispatch the messages
-
+#ifdef _DEBUG
 	if (m_vMessages.size() != 0)
 		printf("[LOADER] Service %zu msg...\n", m_vMessages.size());
+#endif
 
 	for (auto it2 = m_vMessages.begin(); it2 != m_vMessages.end(); it2++)
 	{
@@ -336,7 +376,10 @@ HRESULT DPInstance::Receive(LPDPID lpidFrom, LPDPID lpidTo, DWORD dwFlags, LPVOI
 			if (!m_bHost)
 			{
 				m_pClientPeer->data = (LPVOID) * (DPID*)it->Read2(sizeof(DPID));
+
+#ifdef _DEBUG
 				printf("[LOADER] New peer id %d", (DPID)m_pClientPeer->data);
+#endif
 			}
 
 			m_vMessages.erase(it2);
@@ -351,10 +394,12 @@ HRESULT DPInstance::Receive(LPDPID lpidFrom, LPDPID lpidTo, DWORD dwFlags, LPVOI
 
 			memcpy_s(lpData, lastSize, it->Read2(*lpdwDataSize), *lpdwDataSize);
 
+#ifdef _DEBUG
 			printf("[LOADER] Dump ");
-			for (auto m = 0; m < *lpdwDataSize; m++)
+			for (DWORD m = 0; m < *lpdwDataSize; m++)
 				printf("%x ", *(CHAR*)lpData + m);
 			printf("\n");
+#endif
 		}
 
 		if (!(dwFlags & DPRECEIVE_PEEK))
@@ -376,7 +421,9 @@ HRESULT DPInstance::DestroyPlayer(DPID idPlayer)
 	auto p = v->second;
 	m_vPlayers.erase(v);
 
-	printf("[LOADER] Player detroy %u\n", p->GetId());
+#ifdef _DEBUG
+	printf("[LOADER] Player destroy %u\n", p->GetId());
+#endif
 
 	if (m_bHost && p->IsHostMade()) // Tell all the other players that a player disconnected
 		enet_host_broadcast(m_pHost, ENET_CHANNEL_CHAT, DPMsg::DestroyPlayer(p));
@@ -403,7 +450,9 @@ HRESULT DPInstance::CreatePlayer(LPDPID lpidPlayer, LPDPNAME lpPlayerName, HANDL
 	{ // CLIENT: Ask the network for a new player id
 		enet_peer_send(m_pClientPeer, ENET_CHANNEL_NORMAL, DPMsg::CallNewId(lpPlayerName));
 
+#ifdef _DEBUG
 		printf("[LOADER] Getting peer id from server...\n");
+#endif
 
 		while (true) // Idle until we receive the new id
 		{
@@ -411,7 +460,9 @@ HRESULT DPInstance::CreatePlayer(LPDPID lpidPlayer, LPDPNAME lpPlayerName, HANDL
 
 			if (!m_bConnected)
 			{
+#ifdef _DEBUG
 				printf("[LOADER] Connection lost\n");
+#endif
 				return DPERR_CONNECTIONLOST; // F
 			}
 
@@ -423,7 +474,9 @@ HRESULT DPInstance::CreatePlayer(LPDPID lpidPlayer, LPDPNAME lpPlayerName, HANDL
 		}
 	}
 
+#ifdef _DEBUG
 	printf("[LOADER] New player id %u\n", *lpidPlayer);
+#endif
 
 	const auto player = std::make_shared<DPPlayer>();
 	player->Create(*lpidPlayer, lpPlayerName->lpszShortNameA, lpPlayerName->lpszLongNameA, hEvent, lpData, dwDataSize, dwFlags & DPPLAYER_SPECTATOR, dwFlags & DPPLAYER_SERVERPLAYER);
@@ -450,11 +503,14 @@ void DPInstance::Service(uint32_t timeout)
 		case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT:
 			if (!m_bHost)
 			{ // CLIENT
+#ifdef _DEBUG
 				printf("[LOADER] Disconnected! (timeout? %d)\n", evt.type == ENET_EVENT_TYPE_DISCONNECT_TIMEOUT);
+#endif
 
 				enet_peer_reset(m_pClientPeer);
 				m_pClientPeer = nullptr;
 				m_bConnected = false;
+				m_vMessages.clear();
 
 				DPMSG_SESSIONLOST msg2;
 				msg2.dwType = DPSYS_SESSIONLOST;
@@ -471,7 +527,9 @@ void DPInstance::Service(uint32_t timeout)
 				{
 					auto id = (DPID)evt.peer->data;
 
+#ifdef _DEBUG
 					printf("[LOADER] Peer %d disconnected! (timeout? %d)\n", id, evt.type == ENET_EVENT_TYPE_DISCONNECT_TIMEOUT);
+#endif
 
 					auto it = m_vPlayers.find(id);
 
@@ -497,22 +555,30 @@ void DPInstance::Service(uint32_t timeout)
 		case ENET_EVENT_TYPE_CONNECT:
 			if (!m_bHost)
 			{
+#ifdef _DEBUG
 				printf("[LOADER] Client connected\n");
+#endif
 				m_bConnected = true;
 			}
 			else if (evt.data == 0)
 			{
+#ifdef _DEBUG
 				printf("[LOADER] Sending game info to peer\n");
-				
+#endif
+
 				// SERVER: Send game info to client
 				enet_peer_send(evt.peer, ENET_CHANNEL_NORMAL, DPMsg::CreateRoomInfo(m_gSession, m_dwMaxPlayers, m_vPlayers.size(), m_szGameName.c_str(), m_adwUser, m_dwFlags));
 				//enet_peer_disconnect(evt.peer, 0);
 			}
 			else
 			{
+#ifdef _DEBUG
 				printf("[LOADER] New peer connect\n");
+#endif
 				break; // Do not add this internal message to the queue
 			}
+
+			enet_peer_timeout(evt.peer, TIMEOUT1, TIMEOUT2, TIMEOUT3);
 
 			break;
 
@@ -520,7 +586,9 @@ void DPInstance::Service(uint32_t timeout)
 		{
 			auto msg = std::make_shared<DPMsg>(evt.packet, true);
 
+#ifdef _DEBUG
 			printf("[LOADER] Received %u\n", evt.packet->dataLength);
+#endif
 
 			if (m_bHost)
 			{
@@ -531,8 +599,11 @@ void DPInstance::Service(uint32_t timeout)
 
 					DPID id = (DPID)m_vPlayers.size() + 1;
 					enet_peer_send(evt.peer, ENET_CHANNEL_NORMAL, DPMsg::NewId(id));
-					evt.peer->data = (LPVOID)id; // set id which means the player is authenticated
+					evt.peer->data = (LPVOID)id; // set id which means the player is authenticatedù
+
+#ifdef _DEBUG
 					printf("[LOADER] New peer id %u\n", id);
+#endif
 
 					for (const auto& pp : m_vPlayers)
 					{
@@ -559,7 +630,9 @@ void DPInstance::Service(uint32_t timeout)
 				{
 					evt.peer->data = (LPVOID)msg->Read2(sizeof(DPID)); // Assign the readed id
 					m_pClientPeer->data = evt.peer->data;
+#ifdef _DEBUG
 					printf("[LOADER] Assigned peer id from server %u\n", (DPID)m_pClientPeer->data);
+#endif
 					break; // Do not add this internal message to the queue
 				}
 			}
@@ -630,7 +703,9 @@ HRESULT DPInstance::Open(LPDPSESSIONDESC2 lpsd, DWORD dwFlags)
 		if (m_pHost)
 			return DPERR_ALREADYINITIALIZED;
 
+#ifdef _DEBUG
 		printf("[LOADER] Creating new match...\n");
+#endif
 
 		m_guidFF = lpsd->guidApplication;
 
@@ -647,7 +722,10 @@ HRESULT DPInstance::Open(LPDPSESSIONDESC2 lpsd, DWORD dwFlags)
 		if (!m_pHost)
 			return DPERR_CANNOTCREATESERVER;
 
+#ifdef _DEBUG
 		printf("[LOADER] Creation ok: max players %u\n", lpsd->dwMaxPlayers);
+#endif
+
 		m_vMessages.clear();
 		m_bHost = true;
 		m_szGameName = lpsd->lpszSessionNameA;
@@ -669,7 +747,9 @@ HRESULT DPInstance::Open(LPDPSESSIONDESC2 lpsd, DWORD dwFlags)
 		char addr[40] = { 0 };
 		enet_address_get_ip(&m_eConnectAddr, addr, 40);
 
+#ifdef _DEBUG
 		printf("[LOADER] Trying to connect to %s:%u...\n", addr, m_eConnectAddr.port);
+#endif
 
 #if 0
 		auto it = m_vEnumAddr.find(lpsd->guidInstance);
@@ -685,9 +765,13 @@ HRESULT DPInstance::Open(LPDPSESSIONDESC2 lpsd, DWORD dwFlags)
 		if (!m_pClientPeer)
 			return DPERR_NOCONNECTION;
 
+		enet_peer_timeout(m_pClientPeer, TIMEOUT1, TIMEOUT2, TIMEOUT3);
+
 		m_vMessages.clear();
 
+#ifdef _DEBUG
 		printf("[LOADER] Connect creation ok, start service...\n");
+#endif
 
 		//return DPERR_CONNECTING;
 
@@ -695,13 +779,17 @@ HRESULT DPInstance::Open(LPDPSESSIONDESC2 lpsd, DWORD dwFlags)
 
 		if (!m_bConnected)
 		{
+#ifdef _DEBUG
 			printf("[LOADER] Connection failed\n");
+#endif
 			enet_peer_reset(m_pClientPeer);
 			m_pClientPeer = nullptr;
 			return DPERR_NOCONNECTION;
 		}
 
+#ifdef _DEBUG
 		printf("[LOADER] Connection ok\n");
+#endif
 	}
 
 	return DP_OK;
@@ -711,7 +799,9 @@ HRESULT DPInstance::Close(void)
 {
 	m_bService = false;
 
+#ifdef _DEBUG
 	printf("[LOADER] Shutdown connection\n");
+#endif
 
 	if (m_thread.joinable())
 		m_thread.join();
@@ -727,10 +817,14 @@ HRESULT DPInstance::Close(void)
 		}
 		else
 		{ // CLIENT
-			enet_peer_disconnect(m_pClientPeer, 0);
+			if (m_pClientPeer)
+				enet_peer_disconnect(m_pClientPeer, 0);
 		}
 
+#ifdef _DEBUG
 		printf("[LOADER] Service to disconnect everything....\n");
+#endif
+
 		Service(ENET_SERVICE_TIME); // let everything disconnect gracefully
 
 		if (m_pClientPeer) // CLIENT: reset peer
@@ -760,8 +854,9 @@ HRESULT DPInstance::InitializeConnection(LPVOID lpConnection, DWORD dwFlags)
 
 	if (lpConnection)
 	{ // ASYNC
-
+#ifdef _DEBUG
 		printf("[LOADER] Setup address for client mode...\n");
+#endif
 
 		if (m_pHost)
 			return DPERR_ALREADYINITIALIZED;
@@ -778,7 +873,10 @@ HRESULT DPInstance::InitializeConnection(LPVOID lpConnection, DWORD dwFlags)
 
 		char addr4[40];
 		enet_address_get_ip(&eAddr, addr4, 40);
+
+#ifdef _DEBUG
 		printf("[LOADER] Setup address %s:%d\n", addr4, eAddr.port);
+#endif
 
 		m_eConnectAddr = eAddr;
 	}
@@ -809,6 +907,7 @@ bool DPInstance::GetAddressFromDPAddress(LPVOID lpConnection, ENetAddress* out)
 				enet_address_set_ip(out, ip);
 				out->port = (uint16_t)FURFIGHTERS_PORT;
 				setIp = true;
+				break; // possible fix for addr2 point derefence
 			}
 
 			/*else if (InlineIsEqualGUID(addr2->guidDataType, DPAID_INetPort))
@@ -831,7 +930,9 @@ HRESULT DPInstance::EnumConnections(LPCGUID lpguidApplication, LPDPENUMCONNECTIO
 	dpName.lpszShortNameA = (LPSTR)"ENet";
 	dpName.lpszLongNameA = (LPSTR)"ENet Network Provider";
 
+#ifdef _DEBUG
 	printf("[LOADER] Enum connection %s\n", dpName.lpszLongNameA);
+#endif
 
 	lpEnumCallback(&GUID_ENet, nullptr, 0, &dpName, 0, lpContext);
 
@@ -895,14 +996,24 @@ HRESULT DPInstance::GetPlayerData(DPID idPlayer, LPVOID lpData, LPDWORD lpdwData
 	return DP_OK;
 }
 
-void DPInstance::SetupThreadedService()
+void DPInstance::SetupThreadedService(bool infinite)
 {
+#ifdef _DEBUG
 	printf("[LOADER] Start enet service thread...\n");
+#endif
 
 	m_bService = true;
+	m_ullStartService = GetTickCount64();
+
+	if (infinite)
+		m_ullServiceTimeout = UINT64_MAX;
+
 	m_thread = std::thread([this]() {
 		while (m_bService)
-			Service(0);
+		{
+			if ((GetTickCount64() - m_ullStartService) > m_ullServiceTimeout)
+				Service(0);
+		}
 	});
 }
 
@@ -913,12 +1024,17 @@ HRESULT DPInstance::EnumSessionOut(LPDPENUMSESSIONSCALLBACK2 cb, LPVOID ctx)
 	if (m_thread.joinable())
 		m_thread.join();
 
+#ifdef _DEBUG
 	printf("[LOADER] Start session output... (%zu)\n", m_vMessages.size());
+#endif
 
 	for (auto it2 = m_vMessages.begin(); it2 != m_vMessages.end(); it2++)
 	{
 		auto it = (*it2);
+
+#ifdef _DEBUG
 		printf("[LOADER] EnumSession msg %d %d %d\n", it->GetType(), it->GetFrom(), it->GetTo());
+#endif
 
 		if (it->GetType() == DPMSG_TYPE_GAME_INFO)
 		{
@@ -947,7 +1063,9 @@ HRESULT DPInstance::EnumSessionOut(LPDPENUMSESSIONSCALLBACK2 cb, LPVOID ctx)
 			m_szGameName = info->sessionName;
 			m_dwFlags = info->flags;
 
+#ifdef _DEBUG
 			printf("[LOADER] EnumSession got lobby %s\n", info->sessionName);
+#endif
 
 			DWORD stub = 0;
 			cb(&desc, &stub, 0, ctx);
@@ -957,6 +1075,8 @@ HRESULT DPInstance::EnumSessionOut(LPDPENUMSESSIONSCALLBACK2 cb, LPVOID ctx)
 		}
 	}
 
+#ifdef _DEBUG
 	printf("[LOADER] EnumSession: no lobbies found\n");
+#endif
 	return DPERR_NOCONNECTION;
 }

@@ -154,37 +154,6 @@ ENetPacket* DPMsg::CreateSendComplete(DPID idFrom, DPID idTo, DWORD dwFlags, DWO
 	return msg.Serialize();
 }
 
-/*
-	DPID id;
-	char name[40];
-	char longName[100];
-	DWORD curr;
-	DWORD dwDataSize;
-*/
-
-ENetPacket* DPMsg::PlayerInfo(DPID id, const char* name, const char* longName, DWORD currPlayers, DWORD remoteDataSize, LPVOID lpData)
-{
-#if 0
-	DPPlayerInfo info = { 0 };
-	info.curr = currPlayers;
-
-	if (name)
-		strcpy(info.name, name);
-
-	if (longName)
-		strcpy(info.longName, longName);
-
-	info.id = id;
-	info.dwDataSize = remoteDataSize;
-
-	DPMsg msg(0, id, DPMSG_TYPE_REMOTEINFO);
-	msg.AddToSerialize(info);
-	msg.AddToSerialize(lpData, remoteDataSize);
-	return msg.Serialize();
-#endif
-	return nullptr;
-}
-
 /*!
 * @brief Translates internal network messages to DirectPlay messages
 * @return HResult error code or DP_OK in case of success
@@ -198,6 +167,9 @@ HRESULT_INT DPMsg::FixSysMessage(LPVOID lpData, LPDWORD lpDataSize)
 	auto p = (DPMSG_GENERIC*)Read2(sizeof(DPMSG_GENERIC));
 	DWORD reqSize = 0;
 	ResetRead();
+
+	if (!p)
+		return DPERR_GENERIC;
 
 	auto arena = Globals::Get()->TheArena;
 

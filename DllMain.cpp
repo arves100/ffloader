@@ -7,6 +7,7 @@
 #include "Globals.h"
 #include "LDetours.h"
 
+#ifdef _DEBUG
 static BOOL InitDbgConsole()
 {
     if (!AllocConsole())
@@ -29,15 +30,17 @@ static void DelDbgConsole()
 {
     FreeConsole();
 }
+#endif
 
 BOOL WINAPI DllMain(_In_ HINSTANCE hinstDLL, _In_ DWORD fdwReason, _In_ LPVOID lpReserved)
 {
     switch (fdwReason)
     {
     case DLL_PROCESS_ATTACH:
+#ifdef _DEBUG
         if (!InitDbgConsole())
             return FALSE;
-
+#endif
         if (!Globals::Get()->TheLoader->Init())
             return FALSE;
 
@@ -50,7 +53,9 @@ BOOL WINAPI DllMain(_In_ HINSTANCE hinstDLL, _In_ DWORD fdwReason, _In_ LPVOID l
     case DLL_PROCESS_DETACH:
         DetourDeinit();
         delete Globals::Get();
+#ifdef _DEBUG
         DelDbgConsole();
+#endif
         break;
     }
 

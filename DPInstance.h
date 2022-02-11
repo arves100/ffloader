@@ -39,7 +39,7 @@ public:
 private:
 	bool GetAddressFromDPAddress(LPVOID lpConnection, ENetAddress* addr);
 	void Service(uint32_t time);
-	void SetupThreadedService();
+	void SetupThreadedService(bool infinite);
 	HRESULT EnumSessionOut(LPDPENUMSESSIONSCALLBACK2 cb, LPVOID ctx);
 
 	ENetHost* m_pHost;
@@ -66,4 +66,6 @@ private:
 	// ENet Thread
 	std::thread m_thread;
 	bool m_bService;
+	ULONGLONG m_ullServiceTimeout;
+	ULONGLONG m_ullStartService;
 };

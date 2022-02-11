@@ -14,8 +14,11 @@ extern "C" void DLLAPI D3DXERR_ENUMFORMATSFAILED(LPDDSURFACEDESC2 lpDesc, HMODUL
 	FreeLibrary(lib);
 }
 
+#if 0
 // Fur Fighters's time() function seems to cause errors
 extern "C" time_t DLLAPI D3DXERR_SURFACENOTPALETTED(time_t * t, HMODULE lib)
 {
 	return time(t);
 }
+#endif
+

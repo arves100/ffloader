@@ -17,7 +17,9 @@
 
 bool Loader::Init()
 {
+#ifdef _DEBUG
 	printf("[LOADER] Initializing...\n");
+#endif
 
 	auto globals = Globals::Get();
 
@@ -26,7 +28,9 @@ bool Loader::Init()
 	globals->GameProcess = GetCurrentProcess();
 	globals->GameModule = GetModuleHandleW(L"furfighters.exe");
 
+#ifdef _DEBUG
 	printf("[LOADER] Process ID: %u Process Handle: %p Game Module %p\n", globals->GamePID, globals->GameProcess, globals->GameModule);
+#endif
 
 	if (globals->GamePID == 0 || !globals->GameProcess || !globals->GameModule)
 	{
@@ -46,7 +50,9 @@ bool Loader::Init()
 		FATAL("Cannot get game module information");
 	}
 
+#ifdef _DEBUG
 	printf("[LOADER] Game base address: %p\n", info.lpBaseOfDll);
+#endif
 
 	globals->BaseAddress = info.lpBaseOfDll;
 
@@ -68,7 +74,9 @@ void Loader::ApplyPreInitPatch()
 	if (m_bNoCd)
 	{
 		ApplyNOCD();
+#ifdef _DEBUG
 		printf("[LOADER] Applied NOCD patch\n");
+#endif
 	}
 
 #ifdef _DEBUG
@@ -77,7 +85,10 @@ void Loader::ApplyPreInitPatch()
 #endif
 
 	ApplyENUMALLDISPLAY();
+
+#ifdef _DEBUG
 	printf("[LOADER] Applied ENUMALLDISPLAY patch\n");
+#endif
 
 	//ApplyTIMEFIX();
 }
@@ -173,12 +184,16 @@ void Loader::AddScreenMode(LPDDSURFACEDESC2 dd)
 	{
 		if (*x == di)
 		{
+#ifdef _DEBUG
 			printf("[LOADER] Screen mode %ux%u (%u) already exists\n", di.dwWidth, di.dwheight, di.dwRGBBitsCount);
+#endif
 			return;
 		}
 	}
 
+#ifdef _DEBUG
 	printf("[LOADER] Add screen mode %ux%u (%u)\n", di.dwWidth, di.dwheight, di.dwRGBBitsCount);
+#endif
 
 	m_vModes.push_back(di);
 }
@@ -304,7 +319,9 @@ void Loader::ApplyInitPatch()
 	if (m_bSkipIntro)
 	{
 		ApplyNOINTRO();
+#ifdef _DEBUG
 		printf("[LOADER] Applied NOINTRO patch\n");
+#endif
 	}
 
 	if (globals->WindowedMode)
@@ -317,7 +334,10 @@ void Loader::ApplyInitPatch()
 			FATAL("Unable to set window mode in game");
 
 		ApplyNOEXCLUSIVEINPUT();
+
+#ifdef _DEBUG
 		printf("[LOADER] Applied NOEXCLUSIVEINPUT patch\n");
+#endif
 	}
 }
 
@@ -332,34 +352,44 @@ void Loader::CreateOrLoadSettings()
 	DWORD data = 0, sz = 4;
 	if (RegQueryValueEx(regKey, L"Real Display settings", nullptr, nullptr, (LPBYTE)&data, &sz) == ERROR_SUCCESS)
 	{
+#ifdef _DEBUG
 		printf("[LOADER] Loaded display setting %u\n", data);
+#endif
 		m_dwSelectedScreenMode = data;
 	}
 
 	data = 0;
 	if (RegQueryValueEx(regKey, L"NoIntro", nullptr, nullptr, (LPBYTE)&data, &sz) == ERROR_SUCCESS)
 	{
+#ifdef _DEBUG
 		printf("[LOADER] Loaded nointro setting %u\n", data);
+#endif
 		m_bSkipIntro = data > 0;
 	}
 
 	if (RegQueryValueEx(regKey, L"GPU", nullptr, nullptr, (LPBYTE)&data, &sz) == ERROR_SUCCESS)
 	{
+#ifdef _DEBUG
 		printf("[LOADER] Loaded GPU setting %u\n", data);
+#endif
 		m_dwGpu = data;
 	}
 
 	if (RegQueryValueEx(regKey, L"Windowed", nullptr, nullptr, (LPBYTE)&data, &sz) == ERROR_SUCCESS)
 	{
+#ifdef _DEBUG
 		printf("[LOADER] Loaded Windowed setting %u\n", data);
+#endif
 		Globals::Get()->WindowedMode = data > 0;
 	}
 
 	if (RegQueryValueEx(regKey, L"NoCD", nullptr, nullptr, (LPBYTE)&data, &sz) == ERROR_SUCCESS)
 	{
+#ifdef _DEBUG
 		if (!data)
 			printf("[LOADER] CD MODE ENABLED!!!!!!!!\n");
-	
+#endif
+
 		m_bNoCd = data;
 	}
 	else

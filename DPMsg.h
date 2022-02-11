@@ -158,7 +158,6 @@ public:
 	static ENetPacket* ChatPacket(DPID from, DPID to, bool reliable, LPDPCHAT data);
 	static ENetPacket* CreatePlayerRemote(const std::shared_ptr<DPPlayer>& player, bool reliable);
 	static ENetPacket* CreateSendComplete(DPID idFrom, DPID idTo, DWORD dwFlags, DWORD dwPriority, DWORD dwTimeout, LPVOID lpContext, DWORD lpdwMsgID, HRESULT hr, DWORD dwSendTime);
-	static ENetPacket* PlayerInfo(DPID id, const char* name, const char* longName, DWORD currPlayers, DWORD remoteDataSize, LPVOID lpDataSize);
 
 private:
 	struct RefData
