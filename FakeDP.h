@@ -6,7 +6,11 @@
 */
 #pragma once
 
-#include "DPInstance.h"
+#ifndef HRESULT_INT
+#define HRESULT_INT int  // typedef edit for integration with decomp
+#endif
+
+class DPInstance;  // edit for integration with decomp
 
 class DLLAPI FakeDP
 {

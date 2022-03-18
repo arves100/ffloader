@@ -250,7 +250,11 @@ HRESULT DPInstance::Send(DPID idFrom, DPID idTo, DWORD dwFlags, LPVOID lpData, D
 	{
 		if (idTo == 0)
 		{
-			enet_host_broadcast(m_pHost, ENET_CHANNEL_NORMAL, msg.Serialize((dwFlags & DPSEND_GUARANTEED) ? ENET_PACKET_FLAG_RELIABLE : 0));
+			auto pmng = (dwFlags & DPSEND_GUARANTEED) ? ENET_PACKET_FLAG_RELIABLE : 0;
+#if 1 // test
+			pmng = ENET_PACKET_FLAG_RELIABLE;
+#endif
+			enet_host_broadcast(m_pHost, ENET_CHANNEL_NORMAL, msg.Serialize(pmng));
 		}
 		else if (idTo != 1)
 		{

@@ -6,6 +6,7 @@
 */
 #include "StdAfx.h"
 #include "FakeDP.h"
+#include "DPInstance.h"
 
 FakeDP::FakeDP(void) : m_dp(nullptr)
 {

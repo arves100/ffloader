@@ -11,9 +11,13 @@
 #include <Windows.h>
 #include <Psapi.h>
 
+#ifndef DLLAPI
 #define DLLAPI __declspec(dllexport)
+#endif
 
-typedef int HRESULT_INT;
+#ifndef HRESULT_INT
+#define HRESULT_INT int // typedef edit for integration with decomp
+#endif
 
 // DirectX 8 SDK inclusions
 #define DIRECTINPUT_VERSION 0x700
