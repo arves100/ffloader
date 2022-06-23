@@ -6,6 +6,12 @@ Special thanks to ZaRR for netplay testing and support.
 
 [Discord](https://discord.gg/zgSVGSs)
 
+## Building
+1. Download and install [Microsoft DirectX 8.1 SDK](https://archive.org/download/dx81sdk_full/dx81sdk_full.exe)
+2. Go to your DirectX 8.1 installation directory, open the folder "include" and remove the following file "Basetsd.h"
+3. Set an environment variable in your system called DX8SDK_DIR which points to the root of your DirectX 8.1 installation directory
+4. Open the .sln and compile the DLL
+
 ## Network play
 If your connection is under NAT, we suggest using solutions like ZeroTier.
 The UDP port is 24900.
