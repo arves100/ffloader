@@ -13,7 +13,11 @@
 #include "patches/nointro.h"
 #include "patches/enumalldisplay.h"
 #include "patches/noexclusiveinput.h"
-#include "patches/timefix.h"
+#include "patches/fixwindowed.h"
+#include "patches/onetimealttab.h"
+#include "patches/menuinstantcamera.h"
+//#include "patches/correctaspectratiocc.h"
+//#include "patches/timefix.h"
 
 bool Loader::Init()
 {
@@ -312,6 +316,27 @@ void Loader::PatchScreenMode()
 void Loader::ApplyInitPatch()
 {
 	auto globals = Globals::Get();
+
+		ApplyFIXWINDOWED();
+#ifdef _DEBUG
+		printf("[LOADER] Applied FIXWINDOWED patch\n");
+#endif
+
+		ApplyONETIMEALTTAB();
+#ifdef _DEBUG
+		printf("[LOADER] Applied ONETIMEALTTAB patch\n");
+#endif
+
+		ApplyMENUINSTANTCAMERA();
+#ifdef _DEBUG
+		printf("[LOADER] Applied MENUINSTANTCAMERA patch\n");
+#endif
+
+/*		ApplyCORRECTASPECTRATIOCC();
+#ifdef _DEBUG
+		printf("[LOADER] Applied CORRECTASPECTRATIOCC patch\n");
+#endif
+*/
 
 	if (!globals->LoaderUseFullFunctions)
 		return;
