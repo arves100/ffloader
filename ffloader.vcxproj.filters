@@ -86,6 +86,20 @@
     <ClInclude Include="patches\noexclusiveinput.h">
       <Filter>Patches</Filter>
     </ClInclude>
+    <ClInclude Include="patches\fixwindowed.h">
+      <Filter>Patches</Filter>
+    </ClInclude>
+	<ClInclude Include="patches\onetimealttab.h">
+      <Filter>Patches</Filter>
+    </ClInclude>
+    <ClInclude Include="patches\menuinstantcamera.h">
+      <Filter>Patches</Filter>
+    </ClInclude>
+	<!--
+    <ClInclude Include="patches\correctaspectratiocc.h">
+      <Filter>Patches</Filter>
+    </ClInclude>
+	-->
     <ClInclude Include="enet.h">
       <Filter>File di intestazione</Filter>
     </ClInclude>
