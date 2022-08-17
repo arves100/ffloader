@@ -603,7 +603,7 @@ void DPInstance::Service(uint32_t timeout)
 
 					DPID id = (DPID)m_vPlayers.size() + 1;
 					enet_peer_send(evt.peer, ENET_CHANNEL_NORMAL, DPMsg::NewId(id));
-					evt.peer->data = (LPVOID)id; // set id which means the player is authenticatedù
+					evt.peer->data = (LPVOID)id; // set id which means the player is authenticated
 
 #ifdef _DEBUG
 					printf("[LOADER] New peer id %u\n", id);
@@ -632,7 +632,7 @@ void DPInstance::Service(uint32_t timeout)
 			{
 				if (msg->GetType() == DPMSG_TYPE_NEWID)
 				{
-					evt.peer->data = (LPVOID)msg->Read2(sizeof(DPID)); // Assign the readed id
+					evt.peer->data = (LPVOID) * (DPID*)msg->Read2(sizeof(DPID)); // fixed assign the readed id 
 					m_pClientPeer->data = evt.peer->data;
 #ifdef _DEBUG
 					printf("[LOADER] Assigned peer id from server %u\n", (DPID)m_pClientPeer->data);
