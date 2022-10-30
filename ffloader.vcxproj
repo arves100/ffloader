@@ -13,6 +13,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DPInstance.cpp" />
+    <ClCompile Include="DPInstanceHost.cpp" />
+    <ClCompile Include="DPInstanceJoin.cpp" />
     <ClCompile Include="DPMsg.cpp" />
     <ClCompile Include="DPPlayer.cpp" />
     <ClCompile Include="enet.c">
@@ -29,11 +31,13 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="Xlog.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DPInstance.h" />
+    <ClInclude Include="DPInstanceHost.h" />
+    <ClInclude Include="DPInstanceJoin.h" />
     <ClInclude Include="DPMsg.h" />
-    <ClInclude Include="DPMsgArena.h" />
     <ClInclude Include="DPPlayer.h" />
     <ClInclude Include="enet.h" />
     <ClInclude Include="LDetours.h" />
@@ -47,6 +51,7 @@
     <ClInclude Include="patches\nointro.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="StdAfx.h" />
+    <ClInclude Include="Xlog.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -90,12 +95,12 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <OutDir>_Bin\</OutDir>
+    <OutDir>E:\Fur Fighters\</OutDir>
     <TargetName>NetLib</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>_Bin\</OutDir>
+    <OutDir>E:\Fur Fighters\</OutDir>
     <TargetName>NetLib</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">

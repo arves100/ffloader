@@ -8,14 +8,31 @@
 
 #include "DPPlayer.h"
 
+/*!
+	@enum DPMsgTypes
+	ENet wrapper DirectPlay message types
+*/
 enum DPMsgTypes
 {
+	/// System messages
 	DPMSG_TYPE_SYSTEM = 0,
+
+	/// New user id
 	DPMSG_TYPE_NEWID = 1,
+
+	/// Request for a new user id
 	DPMSG_TYPE_CALL_NEWID = 2,
+
+	/// Lobby info
 	DPMSG_TYPE_GAME_INFO = 3,
+
+	/// Chat message
 	DPMSG_TYPE_CHAT = 4,
+
+	/// Game message
 	DPMSG_TYPE_GAME = 5,
+
+	/// Information on a remote peer
 	DPMSG_TYPE_REMOTEINFO = 6,
 };
 
@@ -45,22 +62,35 @@ struct DPPlayerInfo
 class DPMsg
 {
 public:
+	/*!
+		Constructor for serializer
+		@param from ID where the packet was received
+		@param to ID where the packet is sent
+		@param type Type of packet
+	*/
 	DPMsg(DPID from, DPID to, BYTE type)
 	{
+		// header setup
 		m_header.from = from;
 		m_header.to = to;
 		m_header.type = type;
-		m_lpRaw = nullptr;
-		m_nRawTotalSize = 0;
+
 		m_pPk = nullptr;
+
 		m_nOffset = 0;
+		
+		xlog(DPMSG, DEBUG, "Create from=%d to=%d type=%d", from, to, type);
 	}
 
-	// Deserialize
+	/*!
+		Constructor for deserializer
+		@param ref Enet packet to read
+		@param hold Whenever to hold the packet or not
+	*/
 	DPMsg(ENetPacket* ref, bool hold)
 	{
 		m_pPk = nullptr;
-		m_nRawTotalSize = 0;
+
 		m_nOffset = 0;
 
 		Deserialize(ref, hold);
@@ -77,6 +107,9 @@ public:
 	void Deserialize(ENetPacket* ref, bool hold)
 	{
 		m_header = *(Header*)ref->data;
+		xlog(DPMSG, DEBUG, "Deserialize header %d %d %d", m_header.from, m_header.to, m_header.type);
+
+		// setup raw data
 		m_lpRaw = ref->data + sizeof(Header);
 
 		if (hold)
@@ -89,28 +122,33 @@ public:
 	template <typename T>
 	void AddToSerialize(T& data)
 	{
-		m_vRawData.push_back({ &data, sizeof(data)});
-		m_nRawTotalSize += sizeof(data);
+		AddToSerialize(&data, sizeof(data));
 	}
 
 	void AddToSerialize(LPVOID data, size_t len)
 	{
-		m_vRawData.push_back({ data, len });
+		xlog(DPMSG, DEBUG2, "push data %d (total=%zu, offset=%zu)", sizeof(data), m_nRawTotalSize, m_nOffset);
+
 		m_nRawTotalSize += len;
+
+		m_vRaw.resize(m_nRawTotalSize);
+		memcpy_s(&m_vRaw[m_nOffset], m_vRaw.size() - m_nOffset, data, len);
+
+		m_nOffset += len;
 	}
 
-	ENetPacket* Serialize(uint32_t flag = ENET_PACKET_FLAG_RELIABLE)
+	ENetPacket* Serialize(uint32_t flag)
 	{
-		auto pk = enet_packet_create(nullptr, sizeof(Header) + m_nRawTotalSize, ENET_PACKET_FLAG_RELIABLE);
-		size_t cnt = sizeof(m_header);
+		auto pk = enet_packet_create(nullptr, sizeof(Header) + m_nRawTotalSize, flag);
 
 		memcpy_s(pk->data, pk->dataLength, &m_header, sizeof(m_header));
+		memcpy_s(pk->data + sizeof(Header), pk->dataLength - sizeof(Header), m_vRaw.data(), m_nRawTotalSize);
 
-		for (const auto& p : m_vRawData)
-		{
-			memcpy_s(pk->data + cnt, pk->dataLength - cnt, p.data, p.len);
-			cnt += p.len;
-		}
+		xlog(DPMSG, DEBUG2, "making up packet (header %d %d %d) size=%d, flag=%d", m_header.from, m_header.to, m_header.type, m_nRawTotalSize, flag);
+		
+		m_nOffset = 0;
+		m_nRawTotalSize = 0;
+		m_vRaw.clear();
 
 		return pk;
 	}
@@ -122,11 +160,14 @@ public:
 
 	LPBYTE Read2(size_t len)
 	{
+		xlog(DPMSG, DEBUG2, "reading data=%zu offset=%zu total=%zu", len, m_nOffset, m_nRawTotalSize);
+
 		if ((m_nOffset + len) > m_nRawTotalSize)
 			return nullptr;
 
 		auto p = m_lpRaw + m_nOffset;
 		m_nOffset += len;
+
 		return p;
 	}
 
@@ -155,34 +196,49 @@ public:
 	static ENetPacket* CallNewId(LPDPNAME lpData);
 	static ENetPacket* NewId(DPID id);
 	static ENetPacket* CreateRoomInfo(GUID roomId, DWORD maxPlayers, DWORD currPlayers, const char* sessionName, DWORD user[4], DWORD dwFlags);
-	static ENetPacket* ChatPacket(DPID from, DPID to, bool reliable, LPDPCHAT data);
+
+	/*!
+		Makes a new chat packet
+		@param from Peer from
+		@param to Peer to
+		@param data Chat data
+		@param reliable If the message has to be sent in a reliable way
+		@return Newly created packet
+	*/
+	static ENetPacket* ChatPacket(DPID from, DPID to, LPDPCHAT data, bool reliable);
+
 	static ENetPacket* CreatePlayerRemote(const std::shared_ptr<DPPlayer>& player, bool reliable);
 	static ENetPacket* CreateSendComplete(DPID idFrom, DPID idTo, DWORD dwFlags, DWORD dwPriority, DWORD dwTimeout, LPVOID lpContext, DWORD lpdwMsgID, HRESULT hr, DWORD dwSendTime);
 
 private:
-	struct RefData
-	{
-		LPVOID data;
-		size_t len;
-	};
-
+	/*!
+		@struct Header
+		DirectPlay message header
+	*/
 	struct Header
 	{
+		/// Player who sent it
 		DPID from;
+
+		/// Player who received it
 		DPID to;
+
+		/// Type of message sent
 		BYTE type;
 	} m_header;
 
-	// Used for serliazation
-
-	std::vector<RefData> m_vRawData;
-	size_t m_nRawTotalSize;
-
 	// Used for deserialization get
 	size_t m_nOffset;
+
+	/// Pointer to raw data
 	LPBYTE m_lpRaw;
 
-	// Used for memory cleanup
+	/// Raw size of the data
+	size_t m_nRawTotalSize;
 
+	/// Holder of enet packet
 	ENetPacket* m_pPk;
+
+	/// Buffer for raw data
+	std::vector<uint8_t> m_vRaw;
 };

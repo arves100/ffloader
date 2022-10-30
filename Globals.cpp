@@ -7,6 +7,8 @@
 #include "StdAfx.h"
 #include "Globals.h"
 
+#define DP_ARENA_SIZE 1024*1024*50 // 50MB
+
 Globals::~Globals()
 {
 	delete TheLoader;
@@ -26,7 +28,7 @@ Globals::Globals()
 	memset(GameDiskPath, 0, sizeof(GameDiskPath));
 	BaseAddress = nullptr;
 	WindowedMode = false;
-	TheArena = new DPMsgArena(1024 * 1024 * 20); // 20MB
+	TheArena = new DPMsgArena(DP_ARENA_SIZE); // 20MB
 
 	if (!TheLoader || !TheArena)
 		FATAL("Unable to allocate loader memory");

@@ -31,7 +31,7 @@ ENetPacket* DPMsg::DestroyPlayer(const std::shared_ptr<DPPlayer>& player)
 
 	DPMsg dpMsg(player->GetId(), DPID_SYSMSG, DPMSG_TYPE_SYSTEM);
 	dpMsg.AddToSerialize(msg);
-	return dpMsg.Serialize();
+	return dpMsg.Serialize(ENET_PACKET_FLAG_RELIABLE);
 }
 
 ENetPacket* DPMsg::NewPlayer(const std::shared_ptr<DPPlayer>& player, DWORD oldPlayer)
@@ -104,22 +104,17 @@ ENetPacket* DPMsg::CreateRoomInfo(GUID roomId, DWORD maxPlayers, DWORD currPlaye
 	return msg.Serialize();
 }
 
-ENetPacket* DPMsg::ChatPacket(DPID from, DPID to, bool reliable, LPDPCHAT chatMsg)
+ENetPacket* DPMsg::ChatPacket(DPID from, DPID to, LPDPCHAT chatMsg, bool reliable)
 {
-	DPMSG_CHAT chat;
-	chat.dwType = DPSYS_CHAT;
-	chat.dwFlags = 0;
-	chat.idFromPlayer = from;
-	chat.idToGroup = 0;
-	chat.idToPlayer = to;
-	chat.lpChat = chatMsg;
+	xlog(DPMSG, DEBUG, "Making chat packet %d->%d", from, to);
 
-	DPMsg msg(from, to, DPMSG_TYPE_SYSTEM);
-	msg.AddToSerialize(chat);
-	msg.AddToSerialize(chatMsg, sizeof(DPCHAT));
+	// ENet message
+	DPMsg msg(from, to, DPMSG_TYPE_CHAT);
+
 	size_t len = strlen(chatMsg->lpszMessageA);
 	msg.AddToSerialize(len);
 	msg.AddToSerialize(chatMsg->lpszMessageA, len + 1);
+
 	return msg.Serialize(reliable ? ENET_PACKET_FLAG_RELIABLE : 0);
 }
 

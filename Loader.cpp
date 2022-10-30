@@ -13,7 +13,7 @@
 #include "patches/nointro.h"
 #include "patches/enumalldisplay.h"
 #include "patches/noexclusiveinput.h"
-#include "patches/timefix.h"
+#include "patches/fixalttabsleep.h"
 
 bool Loader::Init()
 {
@@ -89,8 +89,6 @@ void Loader::ApplyPreInitPatch()
 #ifdef _DEBUG
 	printf("[LOADER] Applied ENUMALLDISPLAY patch\n");
 #endif
-
-	//ApplyTIMEFIX();
 }
 
 void Loader::CheckSha256OfGame()
@@ -339,6 +337,11 @@ void Loader::ApplyInitPatch()
 		printf("[LOADER] Applied NOEXCLUSIVEINPUT patch\n");
 #endif
 	}
+
+	ApplyFIXALTTABSLEEP();
+#ifdef _DEBUG
+	printf("[LOADER] Applied FIXALTTABSLEEP patch\n");
+#endif
 }
 
 void Loader::CreateOrLoadSettings()
@@ -510,7 +513,6 @@ void Loader::AcquireOrUnaquire(bool f)
 			else
 				m_dwMouseAcq = 1;
 		}
-
 
 		if (m_dwKeyAcq)
 		{

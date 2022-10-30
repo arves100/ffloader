@@ -80,3 +80,15 @@ struct GUIDHasher
 		return UuidHash((UUID*) &k, &r);
 	}
 };
+
+
+enum ENetChannels
+{
+	ENET_CHANNEL_NORMAL,
+	ENET_CHANNEL_CHAT,
+	ENET_CHANNEL_MAX,
+};
+
+
+// logging
+#include "Xlog.h"

@@ -51,6 +51,15 @@
     <ClCompile Include="DPInstance.cpp">
       <Filter>File di origine</Filter>
     </ClCompile>
+    <ClCompile Include="Xlog.cpp">
+      <Filter>File di origine</Filter>
+    </ClCompile>
+    <ClCompile Include="DPInstanceJoin.cpp">
+      <Filter>File di origine</Filter>
+    </ClCompile>
+    <ClCompile Include="DPInstanceHost.cpp">
+      <Filter>File di origine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FakeDP.h">
@@ -98,7 +107,13 @@
     <ClInclude Include="DPInstance.h">
       <Filter>File di intestazione</Filter>
     </ClInclude>
-    <ClInclude Include="DPMsgArena.h">
+    <ClInclude Include="Xlog.h">
+      <Filter>File di intestazione</Filter>
+    </ClInclude>
+    <ClInclude Include="DPInstanceHost.h">
+      <Filter>File di intestazione</Filter>
+    </ClInclude>
+    <ClInclude Include="DPInstanceJoin.h">
       <Filter>File di intestazione</Filter>
     </ClInclude>
   </ItemGroup>
