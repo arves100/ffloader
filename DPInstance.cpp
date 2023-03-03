@@ -258,7 +258,7 @@ HRESULT DPInstance::Send(DPID idFrom, DPID idTo, DWORD dwFlags, LPVOID lpData, D
 		}
 		else if (idTo != 1)
 		{
-			auto p = m_vPlayers.find(idTo);
+			auto p = m_vPlayers.fiwnd(idTo);
 
 			if (p == m_vPlayers.end())
 				return DPERR_INVALIDPLAYER;
@@ -603,7 +603,7 @@ void DPInstance::Service(uint32_t timeout)
 
 					DPID id = (DPID)m_vPlayers.size() + 1;
 					enet_peer_send(evt.peer, ENET_CHANNEL_NORMAL, DPMsg::NewId(id));
-					evt.peer->data = (LPVOID)id; // set id which means the player is authenticatedù
+					evt.peer->data = (LPVOID)id; // set id which means the player is authenticatedï¿½
 
 #ifdef _DEBUG
 					printf("[LOADER] New peer id %u\n", id);

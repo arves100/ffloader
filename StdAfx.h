@@ -1,15 +1,34 @@
 /*!
 	@file StdAfx.h
-	@brief Main inclusion of the project
 	@author Arves100
 	@date 01/11/2020
+	@brief Main inclusion of the project
 */
 #pragma once
 
+// Strict windows definitions
 #define STRICT 1
+
+// Exclude rarely used Windows stuff
 #define WIN32_LEAN_AND_MEAN 1
+
+// Specify DirectInput version
+#define DIRECTINPUT_VERSION 0x700
+
+// Win32 inclusions
 #include <Windows.h>
 #include <Psapi.h>
+
+// DirectX 8 SDK inclusions
+#include <ddraw.h>
+#include <dinput.h>
+
+// C++
+#include <string>
+#include <vector>
+#include <unordered_map>
+#include <memory>
+#include <thread>
 
 #ifndef DLLAPI
 #define DLLAPI __declspec(dllexport)
@@ -18,13 +37,6 @@
 #ifndef HRESULT_INT
 #define HRESULT_INT int // typedef edit for integration with decomp
 #endif
-
-// DirectX 8 SDK inclusions
-#define DIRECTINPUT_VERSION 0x700
-#include <ddraw.h>
-#include <dplay.h>
-#include <dinput.h>
-#include <dplobby.h>
 
 #define CRASH { int* x = 0; *x = 999; }
 
@@ -43,17 +55,6 @@ DEFINE_GUID(GUID_ENet, 0xcc84bc6b, 0xdf98, 0x4097, 0x94, 0x29, 0x21, 0xac, 0x86,
 
 // {68DCDBFF-BA9C-4776-BC9B-BB98CB9A276A}
 DEFINE_GUID(GUID_ENetAddress, 0x68dcdbff, 0xba9c, 0x4776, 0xbc, 0x9b, 0xbb, 0x98, 0xcb, 0x9a, 0x27, 0x6a);
-
-// C
-#include <cstring>
-#include <cstdlib>
-
-// C++
-#include <string>
-#include <vector>
-#include <unordered_map>
-#include <memory>
-#include <thread>
 
 // REVERSED: CONTENT OF ARRAY AT 0x005B1DA8
 struct avail_display_info
